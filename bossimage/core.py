@@ -116,10 +116,10 @@ def load_instance_info(config, platform):
 
 def wait_for_image(image):
     while(True):
+        image.reload()
         if image.state == 'available':
             break
         else:
-            image.reload()
             time.sleep(5)
 
 def wait_for_ssh(addr):
