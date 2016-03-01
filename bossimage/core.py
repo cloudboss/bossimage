@@ -73,7 +73,7 @@ def create_instance(platform_info):
             AssociatePublicIpAddress=True,
         )],
     )
-    print('Created instance {}'.format(instance['id']))
+    print('Created instance {}'.format(instance.id))
 
     instance.wait_until_running()
     print('Instance is running')
