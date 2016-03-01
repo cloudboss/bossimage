@@ -84,7 +84,7 @@ def create_instance(platform_info):
             AssociatePublicIpAddress=True,
         )],
         BlockDeviceMappings=camelify(
-            platform_info['driver'].get('block_device_mapping', [])
+            platform_info['driver'].get('block_device_mappings', [])
         ),
     )
     print('Created instance {}'.format(instance.id))
