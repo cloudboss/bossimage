@@ -127,17 +127,24 @@ def wait_for_ssh(addr):
 
 def run(platform):
     pf = platform_files(platform)
+
     env = os.environ.copy()
-    env.update(dict(
-        ANSIBLE_HOST_KEY_CHECKING='False',
-        ANSIBLE_ROLES_PATH='.boss/roles:..',
-    ))
-    proc = subprocess.Popen([
-        'ansible-playbook',
-        '-i', pf['inventory'],
-        '-vvvv', pf['playbook'],
-    ], env=env)
-    proc.wait()
+
+    env.update(dict(ANSIBLE_ROLES_PATH='.boss/roles:..'))
+
+    ansible_galaxy = subprocess.Popen(
+        ['ansible-galaxy', 'install', '-r', 'requirements.yml'],
+        env=env
+    )
+    ansible_galaxy.wait()
+
+    env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
+
+    ansible_playbook = subprocess.Popen(
+        ['ansible-playbook', '-i', pf['inventory'], '-vvvv', pf['playbook']],
+        env=env
+    )
+    ansible_playbook.wait()
 
 def delete(platform):
     pf = platform_files(platform)
