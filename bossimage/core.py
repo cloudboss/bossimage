@@ -37,10 +37,7 @@ def camelify(spec):
     if type(spec) == list:
         return [camelify(m) for m in spec]
     elif type(spec) == dict:
-        m = {}
-        for k, v in spec.items():
-            m[snake_to_camel(k)] = camelify(v)
-        return m
+        return { snake_to_camel(k): camelify(v) for k, v in spec.items() }
     else:
         return spec
 
