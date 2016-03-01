@@ -30,6 +30,20 @@ import tempfile
 import yaml
 
 
+def snake_to_camel(s):
+    return ''.join(part[0].capitalize() + part[1:] for part in s.split('_'))
+
+def camelify(spec):
+    if type(spec) == list:
+        return [camelify(m) for m in spec]
+    elif type(spec) == dict:
+        m = {}
+        for k, v in spec.items():
+            m[snake_to_camel(k)] = camelify(v)
+        return m
+    else:
+        return spec
+
 def keyname():
     letters = string.ascii_letters + string.digits
     base = 'bossimage-'
@@ -72,6 +86,9 @@ def create_instance(platform_info):
             DeviceIndex=0,
             AssociatePublicIpAddress=True,
         )],
+        BlockDeviceMappings=camelify(
+            platform_info['driver'].get('block_device_mapping', [])
+        ),
     )
     print('Created instance {}'.format(instance.id))
 
