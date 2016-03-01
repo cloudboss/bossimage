@@ -114,6 +114,14 @@ def load_instance_info(config, platform):
     with open(pf['config']) as f:
         return yaml.load(f)
 
+def wait_for_image(image):
+    while(True):
+        if image.state == 'available':
+            break
+        else:
+            image.reload()
+            time.sleep(5)
+
 def wait_for_ssh(addr):
     while(True):
         try:
@@ -145,6 +153,21 @@ def run(platform):
         env=env
     )
     ansible_playbook.wait()
+
+def image(platform):
+    pf = platform_files(platform)
+    with open(pf['config']) as f:
+        c = yaml.load(f)
+
+    session = boto.Session()
+    ec2 = session.resource('ec2')
+
+    instance = ec2.Instance(id=c['id'])
+    image = instance.create_image(Name=platform)
+    print('Created image {}'.format(image.id))
+
+    wait_for_image(image)
+    print('Image is available')
 
 def delete(platform):
     pf = platform_files(platform)

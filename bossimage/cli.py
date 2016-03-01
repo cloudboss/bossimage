@@ -38,6 +38,14 @@ def run(platform):
 
 @main.command()
 @click.argument('platform')
+def image(platform):
+    config = bc.load_config()
+    if not config: return 1
+
+    bc.image(platform)
+
+@main.command()
+@click.argument('platform')
 def delete(platform):
     config = bc.load_config()
     if not config: return 1
