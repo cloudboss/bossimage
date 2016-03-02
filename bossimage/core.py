@@ -162,7 +162,7 @@ def wait_for_ssh(addr):
             print('failed, will retry')
             time.sleep(5)
 
-def run(platform):
+def run(platform, verbosity):
     pf = platform_files(platform)
 
     env = os.environ.copy()
@@ -177,10 +177,11 @@ def run(platform):
 
     env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
 
-    ansible_playbook = subprocess.Popen(
-        ['ansible-playbook', '-i', pf['inventory'], '-vvvv', pf['playbook']],
-        env=env
-    )
+    args = ['ansible-playbook', '-i', pf['inventory']]
+    if verbosity:
+        args.append('-' + 'v' * verbosity)
+    args.append(pf['playbook'])
+    ansible_playbook = subprocess.Popen(args, env=env)
     ansible_playbook.wait()
 
 def image(platform):

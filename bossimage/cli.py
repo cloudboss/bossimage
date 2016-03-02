@@ -25,7 +25,9 @@ def main(): pass
 
 @main.command()
 @click.argument('platform')
-def run(platform):
+@click.option('-v', '--verbosity', count=True,
+              help='Verbosity, may be repeated up to 4 times')
+def run(platform, verbosity):
     config = bc.load_config()
     if not config: return 1
 
@@ -34,7 +36,7 @@ def run(platform):
 
     bc.wait_for_ssh(instance_info['ip'])
 
-    bc.run(platform)
+    bc.run(platform, verbosity)
 
 @main.command()
 @click.argument('platform')
