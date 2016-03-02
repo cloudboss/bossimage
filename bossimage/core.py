@@ -89,7 +89,7 @@ def create_instance(platform_info):
     os.chmod(pf['keyfile'], 0600)
 
     (instance,) = ec2.create_instances(
-        ImageId=platform_info['driver']['image'],
+        ImageId=ami_id_for(platform_info['driver']['image']),
         InstanceType=platform_info['driver']['instance_type'],
         MinCount=1,
         MaxCount=1,
@@ -220,3 +220,11 @@ def platform_files(platform):
         inventory='.boss/{}.inventory'.format(platform),
         playbook='.boss/{}-playbook.yml'.format(platform),
     )
+
+def ami_id_for(name):
+    if name.startswith('ami-'): return name
+    ec2 = ec2_connect()
+    i = list(ec2.images.filter(
+        Filters=[{ 'Name': 'name', 'Values': [name] }]
+    ))
+    if i: return i[0].id
