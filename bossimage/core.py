@@ -19,6 +19,7 @@
 # THE SOFTWARE.
 from __future__ import print_function
 import boto3 as boto
+import functools as f
 import os
 import random
 import shutil
@@ -29,6 +30,22 @@ import time
 import tempfile
 import yaml
 
+def cached(func):
+    cache = {}
+
+    @f.wraps(func)
+    def wrapper(*args, **kwargs):
+        key = func.__name__ + str(sorted(args)) + str(sorted(kwargs.items()))
+        if key not in cache:
+            print("Adding '{}' to cache".format(key))
+            cache[key] = func(*args, **kwargs)
+        return cache[key]
+    return wrapper
+
+@cached
+def ec2_connect():
+    session = boto.Session()
+    return session.resource('ec2')
 
 def snake_to_camel(s):
     return ''.join(part[0].capitalize() + part[1:] for part in s.split('_'))
@@ -61,8 +78,7 @@ def load_platform_info(config, platform):
     if pi: return pi[0]
 
 def create_instance(platform_info):
-    session = boto.Session()
-    ec2 = session.resource('ec2')
+    ec2 = ec2_connect()
     kn = keyname()
     kp = ec2.create_key_pair(KeyName=kn)
     platform = platform_info['name']
@@ -173,8 +189,7 @@ def image(platform):
     with open(pf['config']) as f:
         c = yaml.load(f)
 
-    session = boto.Session()
-    ec2 = session.resource('ec2')
+    ec2 = ec2_connect()
 
     instance = ec2.Instance(id=c['id'])
     image = instance.create_image(Name=platform)
@@ -189,8 +204,7 @@ def delete(platform):
     with open(pf['config']) as f:
         c = yaml.load(f)
 
-    session = boto.Session()
-    ec2 = session.resource('ec2')
+    ec2 = ec2_connect()
 
     instance = ec2.Instance(id=c['id'])
     instance.terminate()
