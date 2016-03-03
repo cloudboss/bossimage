@@ -169,19 +169,19 @@ def run(platform, verbosity):
 
     env.update(dict(ANSIBLE_ROLES_PATH='.boss/roles:..'))
 
-    ansible_galaxy = subprocess.Popen(
-        ['ansible-galaxy', 'install', '-r', 'requirements.yml'],
-        env=env
-    )
+    ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', 'requirements.yml']
+    if verbosity:
+        ansible_galaxy_args.append('-' + 'v' * verbosity)
+    ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
     ansible_galaxy.wait()
 
     env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
 
-    args = ['ansible-playbook', '-i', pf['inventory']]
+    ansible_playbook_args = ['ansible-playbook', '-i', pf['inventory']]
     if verbosity:
-        args.append('-' + 'v' * verbosity)
-    args.append(pf['playbook'])
-    ansible_playbook = subprocess.Popen(args, env=env)
+        ansible_playbook_args.append('-' + 'v' * verbosity)
+    ansible_playbook_args.append(pf['playbook'])
+    ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
     ansible_playbook.wait()
 
 def image(platform):
