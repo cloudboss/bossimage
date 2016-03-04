@@ -18,6 +18,9 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 import click
+import os
+import yaml
+
 import bossimage.core as bc
 
 @click.group()
@@ -28,8 +31,7 @@ def main(): pass
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
 def run(platform, verbosity):
-    config = bc.load_config()
-    if not config: return 1
+    config = load_config()
 
     bc.create_working_dir()
     instance_info = bc.load_instance_info(config, platform)
@@ -41,15 +43,19 @@ def run(platform, verbosity):
 @main.command()
 @click.argument('platform')
 def image(platform):
-    config = bc.load_config()
-    if not config: return 1
-
     bc.image(platform)
 
 @main.command()
 @click.argument('platform')
 def delete(platform):
-    config = bc.load_config()
-    if not config: return 1
-
     bc.delete(platform)
+
+@bc.cached
+def load_config():
+    try:
+        with open('.boss.yml') as f:
+            c = yaml.load(f)
+        return c
+    except IOError as e:
+        click.echo('Error loading .boss.yml: {}'.format(e.strerror))
+        raise click.Abort()

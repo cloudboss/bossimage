@@ -66,12 +66,6 @@ def keyname():
 def create_working_dir():
     if not os.path.exists('.boss'): os.mkdir('.boss')
 
-def load_config():
-    if os.path.exists('.boss.yml'):
-        with open('.boss.yml') as f:
-            c = yaml.load(f)
-        return c
-
 def load_platform_info(config, platform):
     pi = [p for p in config['platforms'] if p['name'] == platform]
     if pi: return pi[0]
