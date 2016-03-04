@@ -50,6 +50,17 @@ def image(instance):
 def delete(instance):
     bc.delete(instance)
 
+@main.command('list')
+def lst():
+    platforms = list_of('platforms')
+    profiles = list_of('profiles')
+    instances = ['{}-{}'.format(pl, pr) for pl in platforms for pr in profiles]
+    for i in instances: click.echo(i)
+
+def list_of(key):
+    config = load_config()
+    return [k['name'] for k in config[key]]
+
 @bc.cached
 def load_config():
     try:
