@@ -19,3 +19,7 @@ platforms:
             volume_size: 100
             volume_type: gp2
             delete_on_termination: true
+
+profiles:
+  - name: default
+    extra_vars: {}

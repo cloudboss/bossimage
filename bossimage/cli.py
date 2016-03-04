@@ -27,28 +27,28 @@ import bossimage.core as bc
 def main(): pass
 
 @main.command()
-@click.argument('platform')
+@click.argument('instance')
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
-def run(platform, verbosity):
+def run(instance, verbosity):
     config = load_config()
 
     bc.create_working_dir()
-    instance_info = bc.load_instance_info(config, platform)
+    instance_info = bc.load_or_create_instance(config, instance)
 
     bc.wait_for_ssh(instance_info['ip'])
 
-    bc.run(platform, verbosity)
+    bc.run(instance, verbosity)
 
 @main.command()
-@click.argument('platform')
-def image(platform):
-    bc.image(platform)
+@click.argument('instance')
+def image(instance):
+    bc.image(instance)
 
 @main.command()
-@click.argument('platform')
-def delete(platform):
-    bc.delete(platform)
+@click.argument('instance')
+def delete(instance):
+    bc.delete(instance)
 
 @bc.cached
 def load_config():

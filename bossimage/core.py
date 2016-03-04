@@ -57,7 +57,7 @@ def camelify(spec):
     else:
         return spec
 
-def keyname():
+def gen_keyname():
     letters = string.ascii_letters + string.digits
     base = 'bossimage-'
     rand = ''.join([letters[random.randrange(0, len(letters))] for _ in range(10)])
@@ -66,34 +66,26 @@ def keyname():
 def create_working_dir():
     if not os.path.exists('.boss'): os.mkdir('.boss')
 
-def load_platform_info(config, platform):
-    pi = [p for p in config['platforms'] if p['name'] == platform]
-    if pi: return pi[0]
-
-def create_instance(platform_info):
+def create_instance(platform_config, files, keyname):
     ec2 = ec2_connect()
-    kn = keyname()
-    kp = ec2.create_key_pair(KeyName=kn)
-    platform = platform_info['name']
+    kp = ec2.create_key_pair(KeyName=keyname)
 
-    pf = platform_files(platform)
-
-    with open(pf['keyfile'], 'w') as f:
+    with open(files['keyfile'], 'w') as f:
         f.write(kp.key_material)
-    os.chmod(pf['keyfile'], 0600)
+    os.chmod(files['keyfile'], 0600)
 
     (instance,) = ec2.create_instances(
-        ImageId=ami_id_for(platform_info['driver']['image']),
-        InstanceType=platform_info['driver']['instance_type'],
+        ImageId=ami_id_for(platform_config['driver']['image']),
+        InstanceType=platform_config['driver']['instance_type'],
         MinCount=1,
         MaxCount=1,
-        KeyName=kn,
+        KeyName=keyname,
         NetworkInterfaces=[dict(
             DeviceIndex=0,
             AssociatePublicIpAddress=True,
         )],
         BlockDeviceMappings=camelify(
-            platform_info['driver'].get('block_device_mappings', [])
+            platform_config['driver'].get('block_device_mappings', [])
         ),
     )
     print('Created instance {}'.format(instance.id))
@@ -101,40 +93,54 @@ def create_instance(platform_info):
     instance.wait_until_running()
     print('Instance is running')
 
-    instance.load()
+    instance.reload()
+    return instance
 
-    with open(pf['config'], 'w') as f:
+def find(config, kind, instance, op):
+    names = [thing['name'] for thing in config[kind]]
+    for name in names:
+        if op(name):
+            return name
+
+def load_config_for(config, kind, name):
+    config = [c for c in config[kind] if c['name'] == name]
+    if config: return config[0]
+
+def write_files(files, instance, keyname, platform_config):
+    with open(files['config'], 'w') as f:
         f.write(yaml.safe_dump(dict(
             id=instance.id,
             ip=instance.public_ip_address,
-            keyname=kn,
+            keyname=keyname,
+            platform=platform_config['name'],
         )))
 
-    with open(pf['inventory'], 'w') as f:
+    with open(files['inventory'], 'w') as f:
         inventory = '{} ansible_ssh_private_key_file={} ansible_user={}'.format(
             instance.public_ip_address,
-            pf['keyfile'],
-            platform_info.get('username', 'ec2-user'),
+            files['keyfile'],
+            platform_config.get('username', 'ec2-user'),
         )
         f.write(inventory)
 
-    with open(pf['playbook'], 'w') as f:
+    with open(files['playbook'], 'w') as f:
         f.write(yaml.safe_dump([dict(
             hosts='all',
             become=True,
             roles=[os.path.basename(os.getcwd())],
         )]))
 
-def load_instance_info(config, platform):
-    platform_info = load_platform_info(config, platform)
-    if not platform_info: return
+def load_or_create_instance(config, instance):
+    files = instance_files(instance)
 
-    pf = platform_files(platform)
+    if not os.path.exists(files['config']):
+        platform = find(config, 'platforms', instance, instance.startswith)
+        platform_config = load_config_for(config, 'platforms', platform)
+        keyname = gen_keyname()
+        instance = create_instance(platform_config, files, keyname)
+        write_files(files, instance, keyname, platform_config)
 
-    if not os.path.exists(pf['config']):
-        create_instance(platform_info)
-
-    with open(pf['config']) as f:
+    with open(files['config']) as f:
         return yaml.load(f)
 
 def wait_for_image(image):
@@ -156,8 +162,8 @@ def wait_for_ssh(addr):
             print('failed, will retry')
             time.sleep(5)
 
-def run(platform, verbosity):
-    pf = platform_files(platform)
+def run(instance, verbosity):
+    files = instance_files(instance)
 
     env = os.environ.copy()
 
@@ -171,49 +177,49 @@ def run(platform, verbosity):
 
     env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
 
-    ansible_playbook_args = ['ansible-playbook', '-i', pf['inventory']]
+    ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
     if verbosity:
         ansible_playbook_args.append('-' + 'v' * verbosity)
-    ansible_playbook_args.append(pf['playbook'])
+    ansible_playbook_args.append(files['playbook'])
     ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
     ansible_playbook.wait()
 
-def image(platform):
-    pf = platform_files(platform)
-    with open(pf['config']) as f:
+def image(instance):
+    files = instance_files(instance)
+    with open(files['config']) as f:
         c = yaml.load(f)
 
     ec2 = ec2_connect()
 
-    instance = ec2.Instance(id=c['id'])
-    image = instance.create_image(Name=platform)
+    ec2_instance = ec2.Instance(id=c['id'])
+    image = ec2_instance.create_image(Name=instance)
     print('Created image {}'.format(image.id))
 
     wait_for_image(image)
     print('Image is available')
 
-def delete(platform):
-    pf = platform_files(platform)
+def delete(instance):
+    files = instance_files(instance)
 
-    with open(pf['config']) as f:
+    with open(files['config']) as f:
         c = yaml.load(f)
 
     ec2 = ec2_connect()
 
-    instance = ec2.Instance(id=c['id'])
-    instance.terminate()
+    ec2_instance = ec2.Instance(id=c['id'])
+    ec2_instance.terminate()
 
     kp = ec2.KeyPair(name=c['keyname'])
     kp.delete()
 
-    for f in pf.values(): os.unlink(f)
+    for f in files.values(): os.unlink(f)
 
-def platform_files(platform):
+def instance_files(instance):
     return dict(
-        config='.boss/{}.yml'.format(platform),
-        keyfile='.boss/{}.pem'.format(platform),
-        inventory='.boss/{}.inventory'.format(platform),
-        playbook='.boss/{}-playbook.yml'.format(platform),
+        config='.boss/{}.yml'.format(instance),
+        keyfile='.boss/{}.pem'.format(instance),
+        inventory='.boss/{}.inventory'.format(instance),
+        playbook='.boss/{}-playbook.yml'.format(instance),
     )
 
 def ami_id_for(name):
