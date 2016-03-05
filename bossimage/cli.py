@@ -38,7 +38,10 @@ def run(instance, verbosity):
 
     bc.wait_for_ssh(instance_info['ip'])
 
-    bc.run(instance, verbosity)
+    profile = bc.find(config, 'profiles', instance, instance.endswith)
+    profile_config = bc.load_config_for(config, 'profiles', profile)
+    extra_vars = profile_config.get('extra_vars', {})
+    bc.run(instance, extra_vars, verbosity)
 
 @main.command()
 @click.argument('instance')

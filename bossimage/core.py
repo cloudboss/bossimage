@@ -20,6 +20,7 @@
 from __future__ import print_function
 import boto3 as boto
 import functools as f
+import json
 import os
 import random
 import shutil
@@ -162,7 +163,7 @@ def wait_for_ssh(addr):
             print('failed, will retry')
             time.sleep(5)
 
-def run(instance, verbosity):
+def run(instance, extra_vars, verbosity):
     files = instance_files(instance)
 
     env = os.environ.copy()
@@ -180,6 +181,8 @@ def run(instance, verbosity):
     ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
     if verbosity:
         ansible_playbook_args.append('-' + 'v' * verbosity)
+    if extra_vars:
+        ansible_playbook_args += ['--extra-vars', json.dumps(extra_vars)]
     ansible_playbook_args.append(files['playbook'])
     ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
     ansible_playbook.wait()
