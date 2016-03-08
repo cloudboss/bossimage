@@ -122,7 +122,6 @@ def write_files(files, instance, keyname, config):
         )]))
 
 def load_or_create_instance(config):
-    print(config)
     instance = '{}-{}'.format(config['platform'], config['profile'])
     files = instance_files(instance)
 
@@ -224,7 +223,6 @@ def ami_id_for(name):
     if i: return i[0].id
 
 def merge_config(c):
-    print(c)
     merged = {}
     for platform in c['platforms']:
         for profile in c['profiles']:
