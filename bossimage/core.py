@@ -23,12 +23,14 @@ import functools as f
 import json
 import os
 import random
+import re
 import shutil
 import socket
 import string
 import subprocess
 import time
 import tempfile
+import voluptuous as v
 import yaml
 
 def cached(func):
@@ -67,7 +69,7 @@ def gen_keyname():
 def create_working_dir():
     if not os.path.exists('.boss'): os.mkdir('.boss')
 
-def create_instance(platform_config, files, keyname):
+def create_instance(config, files, keyname):
     ec2 = ec2_connect()
     kp = ec2.create_key_pair(KeyName=keyname)
 
@@ -76,8 +78,8 @@ def create_instance(platform_config, files, keyname):
     os.chmod(files['keyfile'], 0600)
 
     (instance,) = ec2.create_instances(
-        ImageId=ami_id_for(platform_config['driver']['image']),
-        InstanceType=platform_config['driver']['instance_type'],
+        ImageId=ami_id_for(config['image']),
+        InstanceType=config['instance_type'],
         MinCount=1,
         MaxCount=1,
         KeyName=keyname,
@@ -85,9 +87,7 @@ def create_instance(platform_config, files, keyname):
             DeviceIndex=0,
             AssociatePublicIpAddress=True,
         )],
-        BlockDeviceMappings=camelify(
-            platform_config['driver'].get('block_device_mappings', [])
-        ),
+        BlockDeviceMappings=camelify(config['block_device_mappings']),
     )
     print('Created instance {}'.format(instance.id))
 
@@ -97,30 +97,20 @@ def create_instance(platform_config, files, keyname):
     instance.reload()
     return instance
 
-def find(config, kind, instance, op):
-    names = [thing['name'] for thing in config[kind]]
-    for name in names:
-        if op(name):
-            return name
-
-def load_config_for(config, kind, name):
-    config = [c for c in config[kind] if c['name'] == name]
-    if config: return config[0]
-
-def write_files(files, instance, keyname, platform_config):
+def write_files(files, instance, keyname, config):
     with open(files['config'], 'w') as f:
         f.write(yaml.safe_dump(dict(
             id=instance.id,
             ip=instance.public_ip_address,
             keyname=keyname,
-            platform=platform_config['name'],
+            platform=config['platform'],
         )))
 
     with open(files['inventory'], 'w') as f:
         inventory = '{} ansible_ssh_private_key_file={} ansible_user={}'.format(
             instance.public_ip_address,
             files['keyfile'],
-            platform_config.get('username', 'ec2-user'),
+            config['username'],
         )
         f.write(inventory)
 
@@ -131,15 +121,15 @@ def write_files(files, instance, keyname, platform_config):
             roles=[os.path.basename(os.getcwd())],
         )]))
 
-def load_or_create_instance(config, instance):
+def load_or_create_instance(config):
+    print(config)
+    instance = '{}-{}'.format(config['platform'], config['profile'])
     files = instance_files(instance)
 
     if not os.path.exists(files['config']):
-        platform = find(config, 'platforms', instance, instance.startswith)
-        platform_config = load_config_for(config, 'platforms', platform)
         keyname = gen_keyname()
-        instance = create_instance(platform_config, files, keyname)
-        write_files(files, instance, keyname, platform_config)
+        instance = create_instance(config, files, keyname)
+        write_files(files, instance, keyname, config)
 
     with open(files['config']) as f:
         return yaml.load(f)
@@ -232,3 +222,85 @@ def ami_id_for(name):
         Filters=[{ 'Name': 'name', 'Values': [name] }]
     ))
     if i: return i[0].id
+
+def merge_config(c):
+    print(c)
+    merged = {}
+    for platform in c['platforms']:
+        for profile in c['profiles']:
+            instance = '{}-{}'.format(platform['name'], profile['name'])
+            merged[instance] = {
+                k: v for k, v in platform.items() if k != 'name'
+            }
+            merged[instance]['platform'] = platform['name']
+            merged[instance].update({
+                k: v for k, v in c['driver'].items() if k not in platform
+            })
+            merged[instance].update({
+                k: v for k, v in profile.items() if k != 'name'
+            })
+            merged[instance]['profile'] = profile['name']
+    return merged
+
+def invalid(kind, item):
+    return v.Invalid('Invalid {}: {}'.format(kind, item))
+
+def re_validator(pat, s, kind):
+    if not re.match(pat, s): raise invalid(kind, s)
+    return s
+
+def coll_validator(coll, kind, thing):
+    if thing not in coll: raise invalid(kind, thing)
+    return thing
+
+def is_subnet_id(s):
+    return re_validator(r'subnet-[0-9a-f]{8}', s, 'subnet_id')
+
+def is_snapshot_id(s):
+    return re_validator(r'snap-[0-9a-f]{8}', s, 'snapshot_id')
+
+def is_virtual_name(s):
+    return re_validator(r'ephemeral\d+', s, 'virtual_name')
+
+def is_volume_type(s):
+    return coll_validator(('gp2', 'io1', 'standard'), 'volume_type', s)
+
+def pre_merge_schema():
+    default_profiles = [{
+        'name': 'default',
+        'extra_vars': {}
+    }]
+    return v.Schema({
+        v.Optional('driver', default={}): { v.Extra: object },
+        v.Required('platforms'): [{
+            v.Required('name'): str,
+        }],
+        v.Optional('profiles', default=default_profiles): [{
+            v.Required('name'): str,
+        }],
+    }, extra=v.ALLOW_EXTRA)
+
+def post_merge_schema():
+    return v.Schema({
+        str: {
+            'platform': str,
+            'profile': str,
+            'extra_vars': { v.Extra: object },
+            v.Required('image'): str,
+            v.Required('instance_type'): str,
+            v.Optional('username', default='ec2-user'): str,
+            v.Optional('block_device_mappings', default=[]): [{
+                v.Required('device_name'): str,
+                'ebs': {
+                    'volume_size': int,
+                    'volume_type': is_volume_type,
+                    'delete_on_termination': bool,
+                    'encrypted': bool,
+                    'iops': int,
+                    'snapshot_id': is_snapshot_id,
+                },
+                'no_device': str,
+                'virtual_name': is_virtual_name,
+            }],
+        }
+    })

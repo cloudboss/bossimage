@@ -21,6 +21,8 @@ import click
 import os
 import yaml
 
+import voluptuous as v
+
 import bossimage.core as bc
 
 @click.group()
@@ -31,17 +33,15 @@ def main(): pass
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
 def run(instance, verbosity):
-    config = load_config()
+    config = load_config()[instance]
 
     bc.create_working_dir()
-    instance_info = bc.load_or_create_instance(config, instance)
+
+    instance_info = bc.load_or_create_instance(config)
 
     bc.wait_for_ssh(instance_info['ip'])
 
-    profile = bc.find(config, 'profiles', instance, instance.endswith)
-    profile_config = bc.load_config_for(config, 'profiles', profile)
-    extra_vars = profile_config.get('extra_vars', {})
-    bc.run(instance, extra_vars, verbosity)
+    bc.run(instance, config['extra_vars'], verbosity)
 
 @main.command()
 @click.argument('instance')
@@ -66,10 +66,15 @@ def list_of(key):
 
 @bc.cached
 def load_config():
+    pre_validate = bc.pre_merge_schema()
+    post_validate = bc.post_merge_schema()
     try:
         with open('.boss.yml') as f:
-            c = yaml.load(f)
-        return c
+            c = pre_validate(yaml.load(f))
+        return post_validate(bc.merge_config(c))
     except IOError as e:
         click.echo('Error loading .boss.yml: {}'.format(e.strerror))
+        raise click.Abort()
+    except v.Invalid as e:
+        click.echo('Error validating .boss.yml: {}'.format(e))
         raise click.Abort()
