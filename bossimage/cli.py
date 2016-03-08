@@ -55,10 +55,8 @@ def delete(instance):
 
 @main.command('list')
 def lst():
-    platforms = list_of('platforms')
-    profiles = list_of('profiles')
-    instances = ['{}-{}'.format(pl, pr) for pl in platforms for pr in profiles]
-    for i in instances: click.echo(i)
+    for instance in load_config().keys():
+        click.echo(instance)
 
 def list_of(key):
     config = load_config()
