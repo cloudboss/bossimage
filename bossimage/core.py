@@ -78,7 +78,7 @@ def create_instance(config, files, keyname):
     os.chmod(files['keyfile'], 0600)
 
     (instance,) = ec2.create_instances(
-        ImageId=ami_id_for(config['image']),
+        ImageId=ami_id_for(config['source_ami']),
         InstanceType=config['instance_type'],
         MinCount=1,
         MaxCount=1,
@@ -96,6 +96,14 @@ def create_instance(config, files, keyname):
 
     instance.reload()
     return instance
+
+def role_name():
+    return os.path.basename(os.getcwd())
+
+def role_version():
+    with open('meta/main.yml') as f:
+        meta = yaml.load(f)
+    return meta['version']
 
 def write_files(files, instance, keyname, config):
     with open(files['config'], 'w') as f:
@@ -118,7 +126,7 @@ def write_files(files, instance, keyname, config):
         f.write(yaml.safe_dump([dict(
             hosts='all',
             become=True,
-            roles=[os.path.basename(os.getcwd())],
+            roles=[role_name()],
         )]))
 
 def load_or_create_instance(config):
@@ -176,15 +184,21 @@ def run(instance, extra_vars, verbosity):
     ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
     ansible_playbook.wait()
 
-def image(instance):
+def image(instance, config):
     files = instance_files(instance)
     with open(files['config']) as f:
         c = yaml.load(f)
 
+    config.update({
+        'role': role_name(),
+        'version': role_version(),
+    })
+    image_name = config['ami_name'] % config
+
     ec2 = ec2_connect()
 
     ec2_instance = ec2.Instance(id=c['id'])
-    image = ec2_instance.create_image(Name=instance)
+    image = ec2_instance.create_image(Name=image_name)
     print('Created image {}'.format(image.id))
 
     wait_for_image(image)
@@ -279,14 +293,16 @@ def pre_merge_schema():
     }, extra=v.ALLOW_EXTRA)
 
 def post_merge_schema():
+    default_ami_name = '%(role)s-%(profile)s-%(version)s-%(platform)s'
     return v.Schema({
         str: {
             'platform': str,
             'profile': str,
             'extra_vars': { v.Extra: object },
-            v.Required('image'): str,
+            v.Required('source_ami'): str,
             v.Required('instance_type'): str,
             v.Optional('username', default='ec2-user'): str,
+            v.Optional('ami_name', default=default_ami_name): str,
             v.Optional('block_device_mappings', default=[]): [{
                 v.Required('device_name'): str,
                 'ebs': {

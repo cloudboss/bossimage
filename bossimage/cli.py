@@ -46,7 +46,8 @@ def run(instance, verbosity):
 @main.command()
 @click.argument('instance')
 def image(instance):
-    bc.image(instance)
+    config = load_config()[instance]
+    bc.image(instance, config)
 
 @main.command()
 @click.argument('instance')
