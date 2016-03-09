@@ -1,24 +1,26 @@
+driver:
+  instance_type: t2.micro
+
 platforms:
   - name: ubuntu-16.04
-    driver:
-      image: ami-301f6f50
-      instance_type: t2.micro
-      block_device_mappings:
-        - device_name: /dev/sdf
-          ebs:
-            volume_size: 100
-            volume_type: gp2
-            delete_on_termination: true
+    image: ami-301f6f50
+    instance_type: t2.micro
+    username: ubuntu
+    block_device_mappings:
+      - device_name: /dev/sdf
+        ebs:
+          volume_size: 100
+          volume_type: gp2
+          delete_on_termination: true
   - name: amz-2015092
-    driver:
-      image: amzn-ami-hvm-2015.09.2.x86_64-gp2
-      instance_type: t2.micro
-      block_device_mappings:
-        - device_name: /dev/sdf
-          ebs:
-            volume_size: 100
-            volume_type: gp2
-            delete_on_termination: true
+    image: amzn-ami-hvm-2015.09.2.x86_64-gp2
+    instance_type: t2.micro
+    block_device_mappings:
+      - device_name: /dev/sdf
+        ebs:
+          volume_size: 100
+          volume_type: gp2
+          delete_on_termination: true
 
 profiles:
   - name: default
