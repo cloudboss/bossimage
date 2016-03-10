@@ -101,9 +101,12 @@ def role_name():
     return os.path.basename(os.getcwd())
 
 def role_version():
-    with open('meta/main.yml') as f:
-        meta = yaml.load(f)
-    return meta['version']
+    if os.path.exists('.role-version'):
+        with open('.role-version') as f:
+            version = f.read().strip()
+    else:
+        version = 'unset'
+    return version
 
 def write_files(files, instance, keyname, config):
     with open(files['config'], 'w') as f:
