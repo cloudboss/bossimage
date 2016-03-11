@@ -102,7 +102,6 @@ def create_instance(config, files, keyname):
     else:
         user_data = ''
 
-    print(user_data)
     (instance,) = ec2.create_instances(
         ImageId=ami_id_for(config['source_ami']),
         InstanceType=config['instance_type'],
