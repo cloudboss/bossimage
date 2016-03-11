@@ -18,7 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 from __future__ import print_function
-import boto3 as boto
 import functools as f
 import itertools
 import json
@@ -32,8 +31,10 @@ import subprocess
 import sys
 import time
 import tempfile
-import voluptuous as v
 import yaml
+
+import boto3 as boto
+import voluptuous as v
 
 
 class Spinner(object):
