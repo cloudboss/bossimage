@@ -20,6 +20,7 @@
 from __future__ import print_function
 import boto3 as boto
 import functools as f
+import itertools
 import json
 import os
 import random
@@ -28,10 +29,26 @@ import shutil
 import socket
 import string
 import subprocess
+import sys
 import time
 import tempfile
 import voluptuous as v
 import yaml
+
+
+class Spinner(object):
+    def __init__(self):
+        self.chars = itertools.cycle(['|', '/', '-', '\\'])
+        self.prefix = ''
+
+    def next(self):
+        print('{}{}'.format(self.prefix, next(self.chars)), end='')
+        self.prefix = '\b'
+        sys.stdout.flush()
+
+    def end(self, msg='ok'):
+        print('{}{}'.format(self.prefix, msg))
+
 
 def cached(func):
     cache = {}
@@ -145,23 +162,28 @@ def load_or_create_instance(config):
         return yaml.load(f)
 
 def wait_for_image(image):
+    print('Waiting for image to be available ... ', end='')
+    s = Spinner()
     while(True):
         image.reload()
         if image.state == 'available':
+            s.end()
             break
         else:
-            time.sleep(5)
+            s.next()
+            time.sleep(2)
 
 def wait_for_ssh(addr):
+    print('Waiting for connection to {}:22 ... '.format(addr), end='')
+    s = Spinner()
     while(True):
         try:
-            print('Attempting ssh connection to {} ... '.format(addr), end='')
             socket.create_connection((addr, 22), 1)
-            print('ok')
+            s.end()
             break
         except:
-            print('failed, will retry')
-            time.sleep(5)
+            s.next()
+            time.sleep(2)
 
 def run(instance, extra_vars, verbosity):
     files = instance_files(instance)
