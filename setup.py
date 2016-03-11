@@ -13,9 +13,15 @@ config = {
     'install_requires': [
         'ansible',
         'boto3',
-        'click'
+        'click',
+        'pywinrm',
+        'voluptuous',
+        'xmltodict',
     ],
     'packages': ['bossimage'],
+    'package_data': {
+        'bossimage': ['*.txt']
+    },
     'entry_points': {
         'console_scripts': ['bi = bossimage.cli:main']
     },

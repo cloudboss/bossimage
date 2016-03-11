@@ -34,14 +34,7 @@ def main(): pass
               help='Verbosity, may be repeated up to 4 times')
 def run(instance, verbosity):
     config = load_config()[instance]
-
-    bc.create_working_dir()
-
-    instance_info = bc.load_or_create_instance(config)
-
-    bc.wait_for_ssh(instance_info['ip'])
-
-    bc.run(instance, config['extra_vars'], verbosity)
+    bc.run(instance, config, verbosity)
 
 @main.command()
 @click.argument('instance')

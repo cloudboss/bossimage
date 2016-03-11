@@ -2,6 +2,13 @@ driver:
   instance_type: t2.micro
 
 platforms:
+  - name: win-2012r2
+    source_ami: Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10
+    ami_name: '%(role)s-%(profile)s-%(version)s-%(platform)s'
+    instance_type: t2.micro
+    username: Administrator
+    become: false
+    port: 5985
   - name: ubuntu-16.04
     source_ami: ami-301f6f50
     ami_name: '%(role)s-%(profile)s-%(version)s-%(platform)s'

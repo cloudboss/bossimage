@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 from __future__ import print_function
+import base64
 import functools as f
 import itertools
 import json
@@ -34,6 +35,7 @@ import tempfile
 import yaml
 
 import boto3 as boto
+import pkg_resources as pr
 import voluptuous as v
 
 
@@ -95,6 +97,12 @@ def create_instance(config, files, keyname):
         f.write(kp.key_material)
     os.chmod(files['keyfile'], 0600)
 
+    if config['connection'] == 'winrm':
+        user_data = pr.resource_string('bossimage', 'win-userdata.txt')
+    else:
+        user_data = ''
+
+    print(user_data)
     (instance,) = ec2.create_instances(
         ImageId=ami_id_for(config['source_ami']),
         InstanceType=config['instance_type'],
@@ -106,6 +114,7 @@ def create_instance(config, files, keyname):
             AssociatePublicIpAddress=True,
         )],
         BlockDeviceMappings=camelify(config['block_device_mappings']),
+        UserData=user_data,
     )
     print('Created instance {}'.format(instance.id))
 
@@ -126,27 +135,44 @@ def role_version():
         version = 'unset'
     return version
 
-def write_files(files, instance, keyname, config):
+def decrypt_password(password_file, keyfile):
+    openssl = subprocess.Popen([
+        'openssl', 'rsautl', '-decrypt',
+        '-in', password_file,
+        '-inkey', keyfile,
+    ], stdout=subprocess.PIPE)
+    password, _ = openssl.communicate()
+    return password
+
+def write_files(files, ec2_instance, keyname, config, password):
     with open(files['config'], 'w') as f:
         f.write(yaml.safe_dump(dict(
-            id=instance.id,
-            ip=instance.public_ip_address,
+            id=ec2_instance.id,
+            ip=ec2_instance.public_ip_address,
             keyname=keyname,
             platform=config['platform'],
         )))
 
     with open(files['inventory'], 'w') as f:
-        inventory = '{} ansible_ssh_private_key_file={} ansible_user={}'.format(
-            instance.public_ip_address,
-            files['keyfile'],
-            config['username'],
-        )
+        inventory = '{} ' \
+                    'ansible_ssh_private_key_file={} ' \
+                    'ansible_user={} ' \
+                    'ansible_password={} ' \
+                    'ansible_port={} ' \
+                    'ansible_connection={}'.format(
+                        ec2_instance.public_ip_address,
+                        files['keyfile'],
+                        config['username'],
+                        password,
+                        config['port'],
+                        config['connection'],
+                    )
         f.write(inventory)
 
     with open(files['playbook'], 'w') as f:
         f.write(yaml.safe_dump([dict(
             hosts='all',
-            become=True,
+            become=config['become'],
             roles=[role_name()],
         )]))
 
@@ -156,8 +182,19 @@ def load_or_create_instance(config):
 
     if not os.path.exists(files['config']):
         keyname = gen_keyname()
-        instance = create_instance(config, files, keyname)
-        write_files(files, instance, keyname, config)
+        ec2_instance = create_instance(config, files, keyname)
+
+        if config['connection'] == 'winrm':
+            encrypted_password = wait_for_password(ec2_instance)
+            password_file = '.boss/{}.pw'.format(instance)
+            with open(password_file, 'w') as f:
+                f.write(base64.decodestring(encrypted_password))
+            password = decrypt_password(password_file, files['keyfile'])
+            os.unlink(password_file)
+        else:
+            password = None
+
+        write_files(files, ec2_instance, keyname, config, password)
 
     with open(files['config']) as f:
         return yaml.load(f)
@@ -174,20 +211,38 @@ def wait_for_image(image):
             s.next()
             time.sleep(2)
 
-def wait_for_ssh(addr):
-    print('Waiting for connection to {}:22 ... '.format(addr), end='')
+def wait_for_password(ec2_instance):
+    print('Waiting for password to be available ... ', end='')
+    s = Spinner()
+    while True:
+        ec2_instance.reload()
+        pd = ec2_instance.password_data()
+        if pd['PasswordData']:
+            s.end()
+            return pd['PasswordData']
+        else:
+            s.next()
+            time.sleep(2)
+
+def wait_for_connection(addr, port):
+    print('Waiting for connection to {}:{} ... '.format(addr, port), end='')
     s = Spinner()
     while(True):
         try:
-            socket.create_connection((addr, 22), 1)
+            socket.create_connection((addr, port), 1)
             s.end()
             break
         except:
             s.next()
             time.sleep(2)
 
-def run(instance, extra_vars, verbosity):
+def run(instance, config, verbosity):
+    create_working_dir()
     files = instance_files(instance)
+
+    instance_info = load_or_create_instance(config)
+
+    wait_for_connection(instance_info['ip'], config['port'])
 
     env = os.environ.copy()
 
@@ -204,8 +259,8 @@ def run(instance, extra_vars, verbosity):
     ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
     if verbosity:
         ansible_playbook_args.append('-' + 'v' * verbosity)
-    if extra_vars:
-        ansible_playbook_args += ['--extra-vars', json.dumps(extra_vars)]
+    if config['extra_vars']:
+        ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
     ansible_playbook_args.append(files['playbook'])
     ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
     ansible_playbook.wait()
@@ -244,7 +299,11 @@ def delete(instance):
     kp = ec2.KeyPair(name=c['keyname'])
     kp.delete()
 
-    for f in files.values(): os.unlink(f)
+    for f in files.values():
+        try:
+            os.unlink(f)
+        except OSError:
+            print('Error removing {}, skipping'.format(f))
 
 def instance_files(instance):
     return dict(
@@ -328,7 +387,10 @@ def post_merge_schema():
             v.Required('source_ami'): str,
             v.Required('instance_type'): str,
             v.Optional('username', default='ec2-user'): str,
+            v.Optional('become', default=True): bool,
             v.Optional('ami_name', default=default_ami_name): str,
+            v.Optional('connection', default='ssh'): v.Or('ssh', 'winrm'),
+            v.Optional('port', default=22): int,
             v.Optional('block_device_mappings', default=[]): [{
                 v.Required('device_name'): str,
                 'ebs': {
