@@ -59,10 +59,6 @@ def lst():
     for instance in load_config().keys():
         click.echo(instance)
 
-def list_of(key):
-    config = load_config()
-    return [k['name'] for k in config[key]]
-
 @bc.cached
 def load_config():
     pre_validate = bc.pre_merge_schema()
