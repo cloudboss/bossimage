@@ -167,6 +167,7 @@ def write_files(files, ec2_instance, keyname, config, password):
                         config['connection'],
                     )
         f.write(inventory)
+    os.chmod(files['inventory'], 0600)
 
     with open(files['playbook'], 'w') as f:
         f.write(yaml.safe_dump([dict(
