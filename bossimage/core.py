@@ -186,7 +186,7 @@ def load_or_create_instance(config):
 
         if config['connection'] == 'winrm':
             encrypted_password = wait_for_password(ec2_instance)
-            password_file = '.boss/{}.pw'.format(instance)
+            password_file = tempfile.mktemp(dir='.boss')
             with open(password_file, 'w') as f:
                 f.write(base64.decodestring(encrypted_password))
             password = decrypt_password(password_file, files['keyfile'])
