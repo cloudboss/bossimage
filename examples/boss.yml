@@ -8,6 +8,7 @@ platforms:
     instance_type: t2.micro
     username: Administrator
     become: false
+    connection: winrm
     port: 5985
   - name: ubuntu-16.04
     source_ami: ami-301f6f50
