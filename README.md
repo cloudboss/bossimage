@@ -16,6 +16,13 @@ pip install .
 ## Quick start
 After installation, the `bi` command is provided, which has four subcommands: `list`, `run`, `image`, and `delete`.
 
+AWS region and credentials must be set.
+
+```
+export AWS_PROFILE=uhuru
+export AWS_DEFAULT_REGION=us-west-1
+```
+
 #### ansible-galaxy
 Create an Ansible role.
 
@@ -31,13 +38,6 @@ EOF
 ```
 
 Modify the role to add tasks, handlers, and vars as desired.
-
-AWS region and credentials must be set.
-
-```
-export AWS_PROFILE=uhuru
-export AWS_DEFAULT_REGION=us-west-1
-```
 
 #### list
 List instances available to be built that are configured in .boss.yml:
