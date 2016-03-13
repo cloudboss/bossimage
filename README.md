@@ -69,7 +69,7 @@ PLAY RECAP *********************************************************************
 More verbose output may be provided with `-v`, up to four times. This is passed through to `ansible-playbook`.
 
 ```
-$ bi run -vvvv
+$ bi run amz-2015092-default -vvvv
 ```
 
 #### image
