@@ -179,7 +179,7 @@ This section is optional, and is where default parameters are set. These are the
 
  Of course, `ami_name` may also be a string used verbatim without any interpolated variables in it.
 
-* `port`: (_int_, _default_: `22`) Port for Ansible to use when connecting.
+* `port`: (_int_, _default_: `22`) Port for Ansible to use when connecting. If `connection` is `winrm`, then this should be `5985`.
 
 * `block_device_mappings`: (_list_ of _map_, _default_: `[]`) Devices to be attached to the EC2 instance that will be part of a baked image.
 
