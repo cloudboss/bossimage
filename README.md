@@ -161,6 +161,12 @@ This section is optional, and is where default parameters are set. These are the
 
 * `instance_type`: (_string_, _required_) EC2 [instance type](http://aws.amazon.com/ec2/instance-types/), e.g. `t2.micro`, `m3.medium`.
 
+* `associate_public_ip_address`: (_bool_, _default_: `true`) If `true`, a public IP address will be assigned to the EC2 instance.
+
+* `subnet`: (_string_, _optional_) Subnet to place EC2 instance into. As with `source_ami`, this may be a name or ID. If not given, the instance will be placed into a subnet in the default VPC.
+
+* `security_groups`: (_list_ of _string_, _optional_) List of security groups to assign to the EC2 instance. May be a name or ID. If not given, the instance will be assigned the default security group of the default VPC.
+
 * `connection`: (_string_, one of `ssh` or `winrm`, _default_: `ssh`) Connection type for Ansible to use.
 
 * `username`: (_string_, _default_: `ec2-user`) Username to connect over ssh or winrm.

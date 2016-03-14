@@ -102,7 +102,7 @@ def create_instance(config, files, keyname):
     else:
         user_data = ''
 
-    (instance,) = ec2.create_instances(
+    instance_params = dict(
         ImageId=ami_id_for(config['source_ami']),
         InstanceType=config['instance_type'],
         MinCount=1,
@@ -110,11 +110,19 @@ def create_instance(config, files, keyname):
         KeyName=keyname,
         NetworkInterfaces=[dict(
             DeviceIndex=0,
-            AssociatePublicIpAddress=True,
+            AssociatePublicIpAddress=config['associate_public_ip_address'],
         )],
         BlockDeviceMappings=camelify(config['block_device_mappings']),
         UserData=user_data,
     )
+    if config['subnet']:
+        subnet_id = subnet_id_for(config['subnet'])
+        instance_params['NetworkInterfaces'][0]['SubnetId'] = subnet_id
+    if config['security_groups']:
+        sg_ids = [sg_id_for(name) for name in config['security_groups']]
+        instance_params['NetworkInterfaces'][0]['Groups'] = sg_ids
+
+    (instance,) = ec2.create_instances(**instance_params)
     print('Created instance {}'.format(instance.id))
 
     instance.wait_until_running()
@@ -144,10 +152,15 @@ def decrypt_password(password_file, keyfile):
     return password
 
 def write_files(files, ec2_instance, keyname, config, password):
+    if config['associate_public_ip_address']:
+        ip_address = ec2_instance.public_ip_address
+    else:
+        ip_address = ec2_instance.private_ip_address
+
     with open(files['config'], 'w') as f:
         f.write(yaml.safe_dump(dict(
             id=ec2_instance.id,
-            ip=ec2_instance.public_ip_address,
+            ip=ip_address,
             keyname=keyname,
             platform=config['platform'],
         )))
@@ -159,7 +172,7 @@ def write_files(files, ec2_instance, keyname, config, password):
                     'ansible_password={} ' \
                     'ansible_port={} ' \
                     'ansible_connection={}'.format(
-                        ec2_instance.public_ip_address,
+                        ip_address,
                         files['keyfile'],
                         config['username'],
                         password,
@@ -313,13 +326,31 @@ def instance_files(instance):
         playbook='.boss/{}-playbook.yml'.format(instance),
     )
 
+def resource_id_for(service, name, prefix, flt):
+    if name.startswith(prefix): return name
+    item = list(service.filter(Filters=[flt]))
+    if item: return item[0].id
+
 def ami_id_for(name):
-    if name.startswith('ami-'): return name
     ec2 = ec2_connect()
-    i = list(ec2.images.filter(
-        Filters=[{ 'Name': 'name', 'Values': [name] }]
-    ))
-    if i: return i[0].id
+    return resource_id_for(
+        ec2.images, name, 'ami-',
+        { 'Name': 'name', 'Values': [name] }
+    )
+
+def sg_id_for(name):
+    ec2 = ec2_connect()
+    return resource_id_for(
+        ec2.security_groups, name, 'sg-',
+        { 'Name': 'group-name', 'Values': [name] }
+    )
+
+def subnet_id_for(name):
+    ec2 = ec2_connect()
+    return resource_id_for(
+        ec2.subnets, name, 'subnet-',
+        { 'Name': 'tag:Name', 'Values': [name] }
+    )
 
 def merge_config(c):
     merged = {}
@@ -391,6 +422,9 @@ def post_merge_schema():
             v.Optional('ami_name', default=default_ami_name): str,
             v.Optional('connection', default='ssh'): v.Or('ssh', 'winrm'),
             v.Optional('port', default=22): int,
+            v.Optional('associate_public_ip_address', default=True): bool,
+            v.Optional('subnet', default=''): str,
+            v.Optional('security_groups', default=[]): [str],
             v.Optional('block_device_mappings', default=[]): [{
                 v.Required('device_name'): str,
                 'ebs': {
