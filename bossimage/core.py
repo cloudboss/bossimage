@@ -414,9 +414,9 @@ def post_merge_schema():
         str: {
             'platform': str,
             'profile': str,
-            'extra_vars': { v.Extra: object },
             v.Required('source_ami'): str,
             v.Required('instance_type'): str,
+            v.Optional('extra_vars', default={}): dict,
             v.Optional('username', default='ec2-user'): str,
             v.Optional('become', default=True): bool,
             v.Optional('ami_name', default=default_ami_name): str,
