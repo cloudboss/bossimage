@@ -190,7 +190,7 @@ This section is optional, and is where default parameters are set. These are the
 
 * `become` - type: _boolean_, default: `true`
 
- If `true`, then Ansible will use sudo. This should be `false` if using `winrm`.
+ If `true`, then Ansible will use sudo. This should be `false` if `connection` is `winrm`.
 
 * `ami_name` - type: _string_, default: `%(role)s-%(profile)s-%(version)s-%(platform)s`
 
