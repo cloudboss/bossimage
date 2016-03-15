@@ -134,6 +134,9 @@ platforms:
   - name: ubuntu-16.04
     source_ami: ami-301f6f50
     username: ubuntu
+    associate_public_ip_address: false
+    subnet: professor
+    security_groups: [mafikizolo]
   - name: amz-2015092
     source_ami: amzn-ami-hvm-2015.09.2.x86_64-gp2
     instance_type: m3.medium
@@ -157,23 +160,41 @@ There are three sections in the file: `driver`, `platforms`, and `profiles`.
 #### driver
 This section is optional, and is where default parameters are set. These are the available keys:
 
-* `source_ami`: (_string_, _required_) AMI to build from, may be either a name or ID. It is recommended to use names, because many AMIs are built in multiple regions and the IDs change between regions while the names generally do not.
+* `source_ami` - type: _string_, required
 
-* `instance_type`: (_string_, _required_) EC2 [instance type](http://aws.amazon.com/ec2/instance-types/), e.g. `t2.micro`, `m3.medium`.
+ AMI to build from, may be either a name or ID. It is recommended to use names, because many AMIs are built in multiple regions and the IDs change between regions while the names generally do not.
 
-* `associate_public_ip_address`: (_bool_, _default_: `true`) If `true`, a public IP address will be assigned to the EC2 instance.
+* `instance_type` - type: _string_, required
 
-* `subnet`: (_string_, _optional_) Subnet to place EC2 instance into. As with `source_ami`, this may be a name or ID. If not given, the instance will be placed into a subnet in the default VPC.
+ EC2 [instance type](http://aws.amazon.com/ec2/instance-types/), e.g. `t2.micro`, `m3.medium`.
 
-* `security_groups`: (_list_ of _string_, _optional_) List of security groups to assign to the EC2 instance. May be a name or ID. If not given, the instance will be assigned the default security group of the default VPC.
+* `associate_public_ip_address` - type: _bool_, default: `true`
 
-* `connection`: (_string_, one of `ssh` or `winrm`, _default_: `ssh`) Connection type for Ansible to use.
+ If `true`, a public IP address will be assigned to the EC2 instance.
 
-* `username`: (_string_, _default_: `ec2-user`) Username to connect over ssh or winrm.
+* `subnet` - type: _string_, optional
 
-* `become`: (_boolean_, _default_: `true`) If `true`, then Ansible will use sudo. This should be `false` if using `winrm`.
+ Subnet to place EC2 instance into. As with `source_ami`, this may be a name or ID. If not given, the instance will be placed into a subnet in the default VPC.
 
-* `ami_name`: (_string_, _default_: `%(role)s-%(profile)s-%(version)s-%(platform)s`) This is a Python formatted string to set the name of the image when using `bi image`.
+* `security_groups` - type: _list_ of _string_, optional
+
+ List of security groups to assign to the EC2 instance. May be names or IDs. If not given, the instance will be assigned the default security group of the default VPC.
+
+* `connection` - type: _string_, one of `ssh` or `winrm`, default: `ssh`
+
+ Connection type for Ansible to use.
+
+* `username` - type: _string_, default: `ec2-user`
+
+ Username to connect over ssh or winrm.
+
+* `become` - type: _boolean_, default: `true`
+
+ If `true`, then Ansible will use sudo. This should be `false` if using `winrm`.
+
+* `ami_name` - type: _string_, default: `%(role)s-%(profile)s-%(version)s-%(platform)s`
+
+ This is a Python formatted string to set the name of the image when using `bi image`.
 
  Variables that may be put into the formatted string are:
 
@@ -185,11 +206,17 @@ This section is optional, and is where default parameters are set. These are the
 
  Of course, `ami_name` may also be a string used verbatim without any interpolated variables in it.
 
-* `port`: (_int_, _default_: `22`) Port for Ansible to use when connecting. If `connection` is `winrm`, then this should be `5985`.
+* `port` - type: _int_, default: `22`
 
-* `block_device_mappings`: (_list_ of _map_, _default_: `[]`) Devices to be attached to the EC2 instance that will be part of a baked image.
+ Port for Ansible to use when connecting. If `connection` is `winrm`, then this should be `5985`.
+
+* `block_device_mappings` - type: _list_ of _map_, default: `[]`
+
+ Devices to be attached to the EC2 instance that will be part of a baked image.
 
  Each item in the list is a map as described in the `BlockDeviceMappings` property passed to the [boto3 create_instances operation](http://boto3.readthedocs.org/en/latest/reference/services/ec2.html#EC2.ServiceResource.create_instances). The only difference is that in `.boss.yml`, "CamelCase" properties should be converted to "snake_case".
+
+ Example:
 
  ```
  block_device_mappings:
