@@ -30,6 +30,7 @@ import socket
 import string
 import subprocess
 import sys
+import threading as t
 import time
 import tempfile
 import yaml
@@ -39,18 +40,26 @@ import pkg_resources as pr
 import voluptuous as v
 
 
-class Spinner(object):
-    def __init__(self):
-        self.chars = itertools.cycle(['|', '/', '-', '\\'])
+class Spinner(t.Thread):
+    def __init__(self, waitable):
+        t.Thread.__init__(self)
+        self.msg = 'Waiting for {} to be available ... '.format(waitable)
+        self.running = False
+        self.chars = itertools.cycle(r'-\|/')
         self.prefix = ''
 
-    def next(self):
-        print('{}{}'.format(self.prefix, next(self.chars)), end='')
-        self.prefix = '\b'
-        sys.stdout.flush()
+    def run(self):
+        print(self.msg, end='')
+        self.running = True
+        while self.running:
+            print('{}{}'.format(self.prefix, next(self.chars)), end='')
+            sys.stdout.flush()
+            self.prefix = '\b'
+            time.sleep(0.5)
+        print('{}ok'.format(self.prefix))
 
-    def end(self, msg='ok'):
-        print('{}{}'.format(self.prefix, msg))
+    def end(self):
+        self.running = False
 
 
 def cached(func):
@@ -125,8 +134,10 @@ def create_instance(config, files, keyname):
     (instance,) = ec2.create_instances(**instance_params)
     print('Created instance {}'.format(instance.id))
 
+    s = Spinner('instance')
+    s.start()
     instance.wait_until_running()
-    print('Instance is running')
+    s.end()
 
     instance.reload()
     return instance
@@ -213,41 +224,38 @@ def load_or_create_instance(config):
         return yaml.load(f)
 
 def wait_for_image(image):
-    print('Waiting for image to be available ... ', end='')
-    s = Spinner()
+    s = Spinner('image')
+    s.start()
     while(True):
         image.reload()
         if image.state == 'available':
-            s.end()
             break
         else:
-            s.next()
-            time.sleep(2)
+            time.sleep(15)
+    s.end()
 
 def wait_for_password(ec2_instance):
-    print('Waiting for password to be available ... ', end='')
-    s = Spinner()
+    s = Spinner('password')
+    s.start()
     while True:
         ec2_instance.reload()
         pd = ec2_instance.password_data()
         if pd['PasswordData']:
-            s.end()
             return pd['PasswordData']
         else:
-            s.next()
-            time.sleep(2)
+            time.sleep(15)
+    s.end()
 
 def wait_for_connection(addr, port):
-    print('Waiting for connection to {}:{} ... '.format(addr, port), end='')
-    s = Spinner()
+    s = Spinner('connection to {}:{}'.format(addr, port))
+    s.start()
     while(True):
         try:
             socket.create_connection((addr, port), 1)
-            s.end()
             break
         except:
-            s.next()
-            time.sleep(2)
+            time.sleep(15)
+    s.end()
 
 def run(instance, config, verbosity):
     create_working_dir()
@@ -296,7 +304,6 @@ def image(instance, config):
     print('Created image {}'.format(image.id))
 
     wait_for_image(image)
-    print('Image is available')
 
 def delete(instance):
     files = instance_files(instance)
