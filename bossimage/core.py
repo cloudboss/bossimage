@@ -34,6 +34,7 @@ import threading as t
 import time
 import tempfile
 import yaml
+import Queue
 
 import boto3 as boto
 import pkg_resources as pr
@@ -47,6 +48,7 @@ class Spinner(t.Thread):
         self.running = False
         self.chars = itertools.cycle(r'-\|/')
         self.prefix = ''
+        self.q = Queue.Queue()
 
     def run(self):
         print(self.msg, end='')
@@ -56,10 +58,12 @@ class Spinner(t.Thread):
             sys.stdout.flush()
             self.prefix = '\b'
             time.sleep(0.5)
-        print('{}ok'.format(self.prefix))
+        self.q.put(None)
 
     def end(self):
         self.running = False
+        self.q.get()
+        print('{}ok'.format(self.prefix))
 
 
 def cached(func):
