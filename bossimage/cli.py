@@ -53,16 +53,16 @@ def lst():
         click.echo(instance)
 
 @bc.cached
-def load_config():
+def load_config(path='.boss.yml'):
     pre_validate = bc.pre_merge_schema()
     post_validate = bc.post_merge_schema()
     try:
-        with open('.boss.yml') as f:
+        with open(path) as f:
             c = pre_validate(yaml.load(f))
         return post_validate(bc.merge_config(c))
     except IOError as e:
-        click.echo('Error loading .boss.yml: {}'.format(e.strerror))
+        click.echo('Error loading {}: {}'.format(path, e.strerror))
         raise click.Abort()
     except v.Invalid as e:
-        click.echo('Error validating .boss.yml: {}'.format(e))
+        click.echo('Error validating {}: {}'.format(path, e))
         raise click.Abort()
