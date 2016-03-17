@@ -44,26 +44,24 @@ import voluptuous as v
 class Spinner(t.Thread):
     def __init__(self, waitable):
         t.Thread.__init__(self)
-        self.msg = 'Waiting for {} to be available ... '.format(waitable)
+        self.msg = 'Waiting for {} to be available ...  '.format(waitable)
         self.running = False
         self.chars = itertools.cycle(r'-\|/')
-        self.prefix = ''
         self.q = Queue.Queue()
 
     def run(self):
         print(self.msg, end='')
         self.running = True
         while self.running:
-            print('{}{}'.format(self.prefix, next(self.chars)), end='')
+            print('\b{}'.format(next(self.chars)), end='')
             sys.stdout.flush()
-            self.prefix = '\b'
             time.sleep(0.5)
         self.q.put(None)
 
     def end(self):
         self.running = False
         self.q.get()
-        print('{}ok'.format(self.prefix))
+        print('\bok')
 
 
 def cached(func):
