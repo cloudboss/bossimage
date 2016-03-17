@@ -49,6 +49,14 @@ class Spinner(t.Thread):
         self.chars = itertools.cycle(r'-\|/')
         self.q = Queue.Queue()
 
+    def __enter__(self):
+        self.start()
+
+    def __exit__(self, _exc_type, _exc_val, _exc_tb):
+        self.running = False
+        self.q.get()
+        print('\bok')
+
     def run(self):
         print(self.msg, end='')
         self.running = True
@@ -57,11 +65,6 @@ class Spinner(t.Thread):
             sys.stdout.flush()
             time.sleep(0.5)
         self.q.put(None)
-
-    def end(self):
-        self.running = False
-        self.q.get()
-        print('\bok')
 
 
 def cached(func):
@@ -136,10 +139,8 @@ def create_instance(config, files, keyname):
     (instance,) = ec2.create_instances(**instance_params)
     print('Created instance {}'.format(instance.id))
 
-    s = Spinner('instance')
-    s.start()
-    instance.wait_until_running()
-    s.end()
+    with Spinner('instance'):
+        instance.wait_until_running()
 
     instance.reload()
     return instance
@@ -226,38 +227,32 @@ def load_or_create_instance(config):
         return yaml.load(f)
 
 def wait_for_image(image):
-    s = Spinner('image')
-    s.start()
-    while(True):
-        image.reload()
-        if image.state == 'available':
-            break
-        else:
-            time.sleep(15)
-    s.end()
+    with Spinner('image'):
+        while(True):
+            image.reload()
+            if image.state == 'available':
+                break
+            else:
+                time.sleep(15)
 
 def wait_for_password(ec2_instance):
-    s = Spinner('password')
-    s.start()
-    while True:
-        ec2_instance.reload()
-        pd = ec2_instance.password_data()
-        if pd['PasswordData']:
-            return pd['PasswordData']
-        else:
-            time.sleep(15)
-    s.end()
+    with Spinner('password'):
+        while True:
+            ec2_instance.reload()
+            pd = ec2_instance.password_data()
+            if pd['PasswordData']:
+                return pd['PasswordData']
+            else:
+                time.sleep(15)
 
 def wait_for_connection(addr, port):
-    s = Spinner('connection to {}:{}'.format(addr, port))
-    s.start()
-    while(True):
-        try:
-            socket.create_connection((addr, port), 1)
-            break
-        except:
-            time.sleep(15)
-    s.end()
+    with Spinner('connection to {}:{}'.format(addr, port)):
+        while(True):
+            try:
+                socket.create_connection((addr, port), 1)
+                break
+            except:
+                time.sleep(15)
 
 def run(instance, config, verbosity):
     create_working_dir()
