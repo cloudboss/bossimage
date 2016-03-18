@@ -1,5 +1,9 @@
-from nose.tools import *
+import yaml
+from nose.tools import assert_equal
+from voluptuous import MultipleInvalid, TypeInvalid
+
 import bossimage.cli as cli
+import bossimage.core as bc
 
 def test_merge_config():
     expected = {
@@ -47,3 +51,29 @@ def test_merge_config():
     c = cli.load_config('tests/resources/boss-good.yml')
 
     assert_equal(c, expected)
+
+def test_bad_config1():
+    pre_validate = bc.pre_merge_schema()
+    post_validate = bc.post_merge_schema()
+
+    with open('tests/resources/boss-bad1.yml') as f:
+        c = yaml.load(f)
+
+    try:
+        pre_validate(c)
+    except MultipleInvalid as e:
+        assert_equal(e.error_message, 'required key not provided')
+
+def test_bad_config2():
+    pre_validate = bc.pre_merge_schema()
+    post_validate = bc.post_merge_schema()
+
+    with open('tests/resources/boss-bad2.yml') as f:
+        c = pre_validate(yaml.load(f))
+
+    merged = bc.merge_config(c)
+
+    try:
+        post_validate(merged)
+    except MultipleInvalid as e:
+        assert_equal(e.error_message, 'expected bool')

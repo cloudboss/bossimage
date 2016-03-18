@@ -1,0 +1,22 @@
+driver:
+  instance_type: t2.micro
+
+platforms:
+  # Missing 'name' key
+  - source_ami: Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10
+    ami_name: 'ami-00000000'
+    instance_type: m3.medium
+    username: Administrator
+    become: false
+    connection: winrm
+    port: 5985
+
+  - name: amz-2015092
+    source_ami: amzn-ami-hvm-2015.09.2.x86_64-gp2
+    ami_name: '%(role)s-%(profile)s-%(version)s-%(platform)s'
+    block_device_mappings:
+      - device_name: /dev/sdf
+        ebs:
+          volume_size: 100
+          volume_type: gp2
+          delete_on_termination: true
