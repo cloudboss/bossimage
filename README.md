@@ -3,6 +3,8 @@ Create a role with `ansible-galaxy` and drop a `.boss.yml` into the directory it
 
 `bossimage` is inspired by both [Packer](https://www.packer.io/) and [Test Kitchen](http://kitchen.ci/), but much simpler than either. If you use both Ansible and AWS, you may find it useful.
 
+`bossimage` has been tested on both Linux and Windows targets in EC2.
+
 # Installation
 
 ```
