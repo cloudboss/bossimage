@@ -1,4 +1,7 @@
 # bossimage
+
+[![Build Status](https://travis-ci.org/cloudboss/bossimage.svg?branch=master)](https://travis-ci.org/cloudboss/bossimage)
+
 Create a role with `ansible-galaxy` and drop a `.boss.yml` into the directory it created. Use `bi run` to create an EC2 instance and run the Ansible role on it. Modify the role and rerun as necessary until satisfied. Use `bi image` to bake it into an image. Clean up with `bi delete`.
 
 `bossimage` is inspired by both [Packer](https://www.packer.io/) and [Test Kitchen](http://kitchen.ci/), but much simpler than either. If you use both Ansible and AWS, you may find it useful.
