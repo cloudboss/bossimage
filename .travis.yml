@@ -1,5 +1,18 @@
 language: python
 python:
-  - "2.7"
-install: "pip install -r requirements-dev.txt"
+- '2.7'
+addons:
+  apt:
+    packages:
+      - pandoc
+install: pip install -r requirements-dev.txt
 script: nosetests
+deploy:
+  provider: pypi
+  user: rjosephwright
+  password:
+    secure: rfjWhvgm80L150v5Zggo4W4QzTd+CakHM+aI4+fpBvZRLqcFSa6Qy3wGeGd/Alen6ttmQN6d4rW380tobFyjRJPhwD7lu65dCBqz/l6T4v6xoWbINe9xOG+5VdhLlgsffFUowjCsB+dpFTeTbrAKqi63Uv7at/0Vi5JrivH2KFtupt8ufnnqqBxYg7Hbg6mYcsm5F9VHw0Pwbknq/ny/TzqwRUdM8sI+DFVvmvJ1plMAbpPB20T3P3yk5ok+PI7KcD6u1o1H63gmOAid6mRQfAFADYPoPUULaLJjFnVShhFcGrZkA0cGpkn8Y8dLQ/VdEwql84J0rM1ClvZP919exU76BvlN0SmpjfwTwPpRcYfGIa5SWSmPF5nQbgos0h3c0EOBVhiliIrlYbQyEEmXXSa6TvXMkMDXlQdplxHXH/IEFa3j33zI3xJ6i3TeX5JmJgnCkh6okaRKyDVsyqL/tpGDNNANsKoVojSvbyubr2WWMGH1axiGSd5a754/79pfR+sTT2Ab7fOy5SLz+hk+QVvL5C6l6czqxZCs5Bc7NGWqr0ZLsBe+KkTP2G7ed6qwkXlFQbtTKoHOnTtx9cNm8ZU5CwGq7t8rX6hzUvTbRtjriGsx2O90dd1yr/sbdbiyK/I68QXbg0rNNlcwjQ33FpPfmhn/JclTxhA+xlAc7pk=
+  on:
+    tags: true
+    distributions: sdist bdist_wheel
+    repo: cloudboss/bossimage

@@ -23,6 +23,7 @@ import yaml
 
 import voluptuous as v
 
+import bossimage as b
 import bossimage.core as bc
 
 @click.group()
@@ -51,6 +52,10 @@ def delete(instance):
 def lst():
     for instance in load_config().keys():
         click.echo(instance)
+
+@main.command()
+def version():
+    click.echo(b.__version__)
 
 @bc.cached
 def load_config(path='.boss.yml'):
