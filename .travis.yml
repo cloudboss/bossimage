@@ -8,11 +8,20 @@ addons:
 install: pip install -r requirements-dev.txt
 script: nosetests
 deploy:
-  provider: pypi
-  user: rjosephwright
-  password:
-    secure: QZcHROovcp0fRUwrlBhB9wBZm0GxwRhNW4i7Xk5tneWmw0Lvp4ttMBrgrVZVQSvdMOGObxFIu1fynvv1HfwR5NNyP/Fw/QvCiL+vaOW0MR8zpaCtLFkaQSM9qk418F4xOF0smGIEoYdh6PtL3P5JAskZWwmdlyaMeGNhVYvSYWhJkyKGZ9GrBixxOEOIF5HCzFw9rp8zrDfEZB3/QuisIQRB7mqTFN0ePEUlPI9VJrrbtcKbP+HKm+eS7SdyfTT4NKqfPbbb3wOnyFAVsi9uPn3lT0VLg+/deFHJcnCBoaWqMGDXXJmxqFh59U8h+O+PXHK2+0D6+YoO26TwigdyxLnaSh3sE2j4rln6SP2h+eSOUelm80N9EegB/ArYu3WKxTV5CL8pAKxFb7nxgHEvlCoN7KsEMF9v8Mdu+qv0ux1OE3D9UEixDALTO2rJ8izG0imLjoy6WSgf5h75dl8s6bHQepk+YcNDiFE7JRMEIDdqq9C/Q3qmq5/U1sgcH2OWCENmTQwSkXMpI4P/ZpKKDBRSIvcMx92VbucPnHFjzRBQkOEBXyVmNO0d5Q21stcL0VXWv+ecZMGQugDIDvIjTDvDu91sfWEbg1tkKtzdvyLPbn8W/WOUMoNvbSeT1Upk+J1pJeSq60xM6DyUHLqHDehGh5iAQYBOMykdHycQCOY=
-  on:
-    tags: true
-    distributions: sdist bdist_wheel
-    repo: cloudboss/bossimage
+  - provider: pypi
+    server: https://testpypi.python.org/pypi
+    user: rjosephwright
+    password:
+      secure: PzxSgIMizOiOtBErXkHrF4fb7sSiYvLtT98U41T+esdWmWhHwAYUoWDViqP8AooTXSd+Kovk9M4uj2GpnCTIRfHwUOj2UlZQxFQKrCg0VV582KSOX3RUFiIlVtvQB65ykA+xJizS7gdGmddZIN/yUZLY6qzS/HYlEGvPqeJpPOA/IdR++K8PxTomjNl+CKCxFxcrKl2+SBrNZ+fn2KqJ+P6yz0RM5j31/KHw6fNgB2tTGaYzeIfVCKKuBPsF33bXMk/RG9P+izjGapCNhvC+FXTxrMnv1ilKy7kp1h7hGBLp+rivX1A9bkR6w6nLYulUuS7V6hGSVA/ZIXK7WfDLT3X1shAdXNdbZUyWWMrnuivBFCNK24UqnyG4032idDbwBPUdfY1/FawVbNeV9d57W7ZjMeco78OBY2e3gViRuOfoo8mpCE9ZhVa6aoa5IcoQYBPyMJI8ZWgRVrsXjm4r/+uaqeKrB46/Ix8elySc2NEvHVLid3+O+SMFWQayI3XFBe4M+eLoBQo5FRq28nZAAQozJLiaO9DFXMaw1YDMRzoUii/9Ik8FdiqIlGFR603rUTiWL5ah9m3+WYpLsF1CnkGj9hEBqYcFZOau+Z7B2rp9COEndJHEKCU4jgyjodOi3iqwg52Wp02L59u4UT83sMVmsq3/271R14UeMZLX/bg=
+    on:
+      tags: false
+      distributions: sdist bdist_wheel
+      repo: cloudboss/bossimage
+  - provider: pypi
+    user: rjosephwright
+    password:
+      secure: QZcHROovcp0fRUwrlBhB9wBZm0GxwRhNW4i7Xk5tneWmw0Lvp4ttMBrgrVZVQSvdMOGObxFIu1fynvv1HfwR5NNyP/Fw/QvCiL+vaOW0MR8zpaCtLFkaQSM9qk418F4xOF0smGIEoYdh6PtL3P5JAskZWwmdlyaMeGNhVYvSYWhJkyKGZ9GrBixxOEOIF5HCzFw9rp8zrDfEZB3/QuisIQRB7mqTFN0ePEUlPI9VJrrbtcKbP+HKm+eS7SdyfTT4NKqfPbbb3wOnyFAVsi9uPn3lT0VLg+/deFHJcnCBoaWqMGDXXJmxqFh59U8h+O+PXHK2+0D6+YoO26TwigdyxLnaSh3sE2j4rln6SP2h+eSOUelm80N9EegB/ArYu3WKxTV5CL8pAKxFb7nxgHEvlCoN7KsEMF9v8Mdu+qv0ux1OE3D9UEixDALTO2rJ8izG0imLjoy6WSgf5h75dl8s6bHQepk+YcNDiFE7JRMEIDdqq9C/Q3qmq5/U1sgcH2OWCENmTQwSkXMpI4P/ZpKKDBRSIvcMx92VbucPnHFjzRBQkOEBXyVmNO0d5Q21stcL0VXWv+ecZMGQugDIDvIjTDvDu91sfWEbg1tkKtzdvyLPbn8W/WOUMoNvbSeT1Upk+J1pJeSq60xM6DyUHLqHDehGh5iAQYBOMykdHycQCOY=
+    on:
+      tags: true
+      distributions: sdist bdist_wheel
+      repo: cloudboss/bossimage
