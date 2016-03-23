@@ -288,17 +288,21 @@ def image(instance, config):
     with open(files['config']) as f:
         c = yaml.load(f)
 
+    ec2 = ec2_connect()
+    ec2_instance = ec2.Instance(id=c['id'])
+    ec2_instance.load()
+
     config.update({
         'role': role_name(),
         'version': role_version(),
+        'arch': ec2_instance.architecture,
+        'hv': ec2_instance.hypervisor,
+        'vtype': ec2_instance.virtualization_type,
     })
+
     image_name = config['ami_name'] % config
-
-    ec2 = ec2_connect()
-
-    ec2_instance = ec2.Instance(id=c['id'])
     image = ec2_instance.create_image(Name=image_name)
-    print('Created image {}'.format(image.id))
+    print('Created image {} with name {}'.format(image.id, image_name))
 
     wait_for_image(image)
 
@@ -413,7 +417,7 @@ def pre_merge_schema():
     }, extra=v.ALLOW_EXTRA)
 
 def post_merge_schema():
-    default_ami_name = '%(role)s-%(profile)s-%(version)s-%(platform)s'
+    default_ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
     return v.Schema({
         str: {
             'platform': str,
