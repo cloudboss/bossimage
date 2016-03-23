@@ -1,3 +1,5 @@
 .python-version
+.ruby-version
 *.egg-info/
 *.pyc
+dist/
