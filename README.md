@@ -19,7 +19,7 @@ pip install .
 
 # Usage
 ## Quick start
-After installation, the `bi` command is provided, which has four subcommands: `list`, `run`, `image`, and `delete`.
+After installation, the `bi` command is provided, which has five subcommands: `list`, `run`, `image`, `delete`, and `version`.
 
 AWS region and credentials must be set.
 
@@ -92,6 +92,14 @@ Clean up the EC2 instance and generated keypair.
 
 ```
 $ bi delete amz-2015092-default
+```
+
+#### version
+Show version.
+
+```
+$ bi version
+0.1.5
 ```
 
 ## More detail
