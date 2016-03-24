@@ -1,0 +1,28 @@
+driver:
+  instance_type: t2.micro
+
+platforms:
+  - name: win-2012r2
+    source_ami: Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10
+    ami_name: 'ami-00000000'
+    instance_type: m3.medium
+    username: Administrator
+    become: false
+    connection: winrm
+    port: 5985
+
+  - name: amz-2015092
+    source_ami: amzn-ami-hvm-2015.09.2.x86_64-gp2
+    user_data:
+      file: tests/resources/file-userdata.txt
+
+  - name: centos-6
+    source_ami: 'CentOS Linux 6 x86_64 HVM EBS 1602-74e73035-3435-48d6-88e0-89cc02ad83ee-ami-21e6d54b.3'
+    user_data: |
+      #cloud-config
+      system_info:
+        default_user:
+          name: ec2-user
+
+  - name: centos-7
+    source_ami: 'CentOS Linux 7 x86_64 HVM EBS 1602-b7ee8a69-ee97-4a49-9e68-afaee216db2e-ami-d7e1d2bd.3'

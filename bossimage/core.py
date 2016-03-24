@@ -103,6 +103,17 @@ def gen_keyname():
 def create_working_dir():
     if not os.path.exists('.boss'): os.mkdir('.boss')
 
+def user_data(config):
+    if type(config['user_data']) == dict:
+        with open(config['user_data']['file']) as f:
+            return f.read()
+
+    if not config['user_data'] and config['connection'] == 'winrm':
+        ud = pr.resource_string('bossimage', 'win-userdata.txt')
+    else:
+        ud = config['user_data']
+    return ud
+
 def create_instance(config, files, keyname):
     ec2 = ec2_connect()
     kp = ec2.create_key_pair(KeyName=keyname)
@@ -110,11 +121,6 @@ def create_instance(config, files, keyname):
     with open(files['keyfile'], 'w') as f:
         f.write(kp.key_material)
     os.chmod(files['keyfile'], 0600)
-
-    if config['connection'] == 'winrm':
-        user_data = pr.resource_string('bossimage', 'win-userdata.txt')
-    else:
-        user_data = ''
 
     instance_params = dict(
         ImageId=ami_id_for(config['source_ami']),
@@ -127,7 +133,7 @@ def create_instance(config, files, keyname):
             AssociatePublicIpAddress=config['associate_public_ip_address'],
         )],
         BlockDeviceMappings=camelify(config['block_device_mappings']),
-        UserData=user_data,
+        UserData=user_data(config),
     )
     if config['subnet']:
         subnet_id = subnet_id_for(config['subnet'])
@@ -433,6 +439,10 @@ def post_merge_schema():
             v.Optional('associate_public_ip_address', default=True): bool,
             v.Optional('subnet', default=''): str,
             v.Optional('security_groups', default=[]): [str],
+            v.Optional('user_data', default=''): v.Or(
+                str,
+                {'file': str},
+            ),
             v.Optional('block_device_mappings', default=[]): [{
                 v.Required('device_name'): str,
                 'ebs': {

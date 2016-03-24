@@ -150,6 +150,9 @@ platforms:
     associate_public_ip_address: false
     subnet: professor
     security_groups: [mafikizolo]
+    user_data:
+      file: user_data.txt
+
   - name: amz-2015092
     source_ami: amzn-ami-hvm-2015.09.2.x86_64-gp2
     instance_type: m3.medium
@@ -159,6 +162,11 @@ platforms:
           volume_size: 100
           volume_type: gp2
           delete_on_termination: true
+    user_data: |
+      #cloud-config
+      system_info:
+        default_user:
+          name: oskido
 
 profiles:
   - name: default
@@ -241,6 +249,28 @@ This section is optional, and is where default parameters are set. These are the
        volume_size: 100
        volume_type: gp2
        delete_on_termination: true
+ ```
+
+* `user_data` - type: _map_ or _string_, default: `''`
+
+ This is the [user data](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html) that will be passed into the EC2 instance. If the given type is a map, then it must have the key `file`, whose value is a valid path name to a file, whose contents will be put into the user data.
+
+ Example:
+
+ ```
+ user_data:
+   file: /path/to/user-data.txt
+ ```
+
+ If the type is a string, then it is passed verbatim as the user data for the instance.
+
+ Example:
+
+ ```
+ user_data: |
+   #!/bin/sh
+   yum update
+   yum upgrade -y
  ```
 
 #### platforms

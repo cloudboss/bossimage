@@ -28,7 +28,8 @@ def test_merge_config():
             'security_groups': [],
             'source_ami': 'amzn-ami-hvm-2015.09.2.x86_64-gp2',
             'subnet': '',
-            'username': 'ec2-user'
+            'username': 'ec2-user',
+            'user_data': '',
         },
         'win-2012r2-default': {
             'ami_name': 'ami-00000000',
@@ -44,7 +45,8 @@ def test_merge_config():
             'security_groups': [],
             'source_ami': 'Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10',
             'subnet': '',
-            'username': 'Administrator'
+            'username': 'Administrator',
+            'user_data': '',
         }
     }
 
@@ -77,3 +79,34 @@ def test_bad_config2():
         post_validate(merged)
     except MultipleInvalid as e:
         assert_equal(e.error_message, 'expected bool')
+
+def test_userdata():
+    c = cli.load_config('tests/resources/boss-userdata.yml')
+
+    win_2012r2 = c['win-2012r2-default']
+    win_2012r2_user_data = '''<powershell>
+winrm qc -q
+winrm set winrm/config \'@{MaxTimeoutms="1800000"}\'
+winrm set winrm/config/service \'@{AllowUnencrypted="true"}\'
+winrm set winrm/config/service/auth \'@{Basic="true"}\'
+Set-Item wsman:localhost\\client\\trustedhosts -value * -force
+Get-NetFirewallProfile | Set-NetFirewallProfile -Enabled False\n</powershell>
+'''
+    assert_equal(bc.user_data(win_2012r2), win_2012r2_user_data)
+
+    amz_2015092 = c['amz-2015092-default']
+    amz_2015092_user_data = '''#!/bin/sh
+pip install ansible
+'''
+    assert_equal(bc.user_data(amz_2015092), amz_2015092_user_data)
+
+    centos_6 = c['centos-6-default']
+    centos_6_user_data = '''#cloud-config
+system_info:
+  default_user:
+    name: ec2-user
+'''
+    assert_equal(bc.user_data(centos_6), centos_6_user_data)
+
+    centos_7 = c['centos-7-default']
+    assert_equal(bc.user_data(centos_7), '')
