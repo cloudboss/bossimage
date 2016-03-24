@@ -56,8 +56,8 @@ Build an EC2 instance and run the Ansible role on it:
 ```
 $ bi run amz-2015092-default
 Created instance i-00000000
-Instance is running
-Waiting for connection to 54.xxx.xxx.xxx:22 ... ok
+Waiting for instance to be available ... ok
+Waiting for connection to 54.xxx.xxx.xxx:22 to be available ... ok
 
 PLAY ***************************************************************************
 
@@ -82,7 +82,7 @@ Bake an image.
 
 ```
 $ bi image amz-2015092-default
-Created image ami-00000000
+Created image ami-00000000 with name test-role.default.amz-2015092.hvm.x86_64.v2
 Waiting for image to be available ... ok
 Image is available
 ```
