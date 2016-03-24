@@ -209,7 +209,7 @@ This section is optional, and is where default parameters are set. These are the
  * `vtype`:  Virtualization type, e.g. `hvm`
  * `arch`:  Architecture, e.g. `x86_64`
  * `version`: Role version. Because Ansible does not provide a way to set a version in the role metadata, this is expected to be placed in a file `.role-version` in the root directory of the role. If the `.role-version` file is not found, then `version` will be the string `unset`.
- * `hv`:  Hypervistor, e.g. `xen`
+ * `hv`:  Hypervisor, e.g. `xen`
  * Perhaps less useful but nonetheless available are any of the configuration values for the instance that may be found in the platform, such as `source_ami`, `instance_type`, `connection`, etc.
 
  Of course, `ami_name` may also be a string used verbatim without any interpolated variables in it.
