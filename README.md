@@ -9,7 +9,11 @@ Create a role with `ansible-galaxy` and drop a `.boss.yml` into the directory it
 `bossimage` has been tested on both Linux and Windows targets in EC2.
 
 # Installation
-
+## Install from [PyPI](https://pypi.python.org/pypi)
+```
+pip install bossimage
+```
+## Install from source
 ```
 git clone https://github.com/cloudboss/bossimage.git
 cd bossimage
