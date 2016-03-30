@@ -23,7 +23,7 @@ pip install .
 
 # Usage
 ## Quick start
-After installation, the `bi` command is provided, which has five subcommands: `list`, `run`, `image`, `delete`, and `version`.
+After installation, the `bi` command is provided, which has the subcommands `list`, `run`, `image`, `delete`, `login`, and `version`.
 
 AWS region and credentials must be set.
 
@@ -96,6 +96,15 @@ Clean up the EC2 instance and generated keypair.
 
 ```
 $ bi delete amz-2015092-default
+```
+
+#### login
+Log into an EC2 instance that has been created with `run`. This is only supported for `ssh` connections.
+
+```
+$ bi login amz-2015092-default
+Last login: Tue Mar 29 15:18:01 2016 from kalawa.example.com
+[ec2-user@ip-172-31-15-45 ~]$
 ```
 
 #### version

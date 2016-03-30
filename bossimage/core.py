@@ -332,6 +332,18 @@ def delete(instance):
         except OSError:
             print('Error removing {}, skipping'.format(f))
 
+def login(instance, config):
+    files = instance_files(instance)
+
+    with open(files['config']) as f:
+        c = yaml.load(f)
+
+    ssh = subprocess.Popen([
+        'ssh', '-i', files['keyfile'],
+        '-l', config['username'], c['ip']
+    ])
+    ssh.wait()
+
 def instance_files(instance):
     return dict(
         config='.boss/{}.yml'.format(instance),

@@ -54,6 +54,15 @@ def lst():
         click.echo(instance)
 
 @main.command()
+@click.argument('instance')
+def login(instance):
+    config = load_config()[instance]
+    if config['connection'] == 'winrm':
+        click.echo('Login unsupported for winrm connections')
+        raise click.Abort()
+    bc.login(instance, config)
+
+@main.command()
 def version():
     click.echo(b.__version__)
 
