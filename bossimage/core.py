@@ -332,6 +332,11 @@ def delete(instance):
         except OSError:
             print('Error removing {}, skipping'.format(f))
 
+def statuses(config):
+    def exists(instance):
+        return os.path.exists('.boss/{}.yml'.format(instance))
+    return [(instance, exists(instance)) for instance in config.keys()]
+
 def login(instance, config):
     files = instance_files(instance)
 

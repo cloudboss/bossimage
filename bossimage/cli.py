@@ -50,8 +50,9 @@ def delete(instance):
 
 @main.command('list')
 def lst():
-    for instance in load_config().keys():
-        click.echo(instance)
+    for instance, created in bc.statuses(load_config()):
+        status = 'Created' if created else 'Not created'
+        click.echo('{:60}{}'.format(instance, status))
 
 @main.command()
 @click.argument('instance')
