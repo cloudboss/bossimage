@@ -251,14 +251,23 @@ def wait_for_password(ec2_instance):
             else:
                 time.sleep(15)
 
-def wait_for_connection(addr, port):
-    with Spinner('connection to {}:{}'.format(addr, port)):
-        while(True):
-            try:
-                socket.create_connection((addr, port), 1)
-                break
-            except:
-                time.sleep(15)
+def wait_for_connection(addr, port, inventory, connection):
+    ping = 'win_ping' if connection == 'winrm' else 'ping'
+    while(True):
+        try:
+            # First check if port is open.
+            socket.create_connection((addr, port), 1)
+
+            # We didn't raise an exception, so port is open.
+            # Now check if we can actually log in.
+            with open('/dev/null') as devnull:
+                ret = subprocess.call([
+                    'ansible', 'all', '-i', inventory, '-m', ping
+                ], stderr=devnull, stdout=devnull)
+                if ret == 0: break
+                else: raise
+        except:
+            time.sleep(15)
 
 def run(instance, config, verbosity):
     create_working_dir()
@@ -266,7 +275,10 @@ def run(instance, config, verbosity):
 
     instance_info = load_or_create_instance(config)
 
-    wait_for_connection(instance_info['ip'], config['port'])
+    ip = instance_info['ip']
+    port = config['port']
+    with Spinner('connection to {}:{}'.format(ip, port)):
+        wait_for_connection(ip, port, files['inventory'], config['connection'])
 
     env = os.environ.copy()
 
