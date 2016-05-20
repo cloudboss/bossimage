@@ -260,7 +260,7 @@ def wait_for_connection(addr, port, inventory, connection):
 
             # We didn't raise an exception, so port is open.
             # Now check if we can actually log in.
-            with open('/dev/null') as devnull:
+            with open('/dev/null', 'wb') as devnull:
                 ret = subprocess.call([
                     'ansible', 'all', '-i', inventory, '-m', ping
                 ], stderr=devnull, stdout=devnull)
