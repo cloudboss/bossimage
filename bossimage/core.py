@@ -253,6 +253,9 @@ def wait_for_password(ec2_instance):
 
 def wait_for_connection(addr, port, inventory, connection):
     ping = 'win_ping' if connection == 'winrm' else 'ping'
+    env = os.environ.copy()
+    env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
+
     while(True):
         try:
             # First check if port is open.
@@ -263,7 +266,7 @@ def wait_for_connection(addr, port, inventory, connection):
             with open('/dev/null', 'wb') as devnull:
                 ret = subprocess.call([
                     'ansible', 'all', '-i', inventory, '-m', ping
-                ], stderr=devnull, stdout=devnull)
+                ], stderr=devnull, stdout=devnull, env=env)
                 if ret == 0: break
                 else: raise
         except:
