@@ -145,6 +145,9 @@ def create_instance(config, files, keyname):
     (instance,) = ec2.create_instances(**instance_params)
     print('Created instance {}'.format(instance.id))
 
+    tags = [{'Key': k, 'Value': v} for k, v in config['tags'].items()]
+    ec2.create_tags(Resources=[instance.id], Tags=tags)
+
     with Spinner('instance'):
         instance.wait_until_running()
 
@@ -471,6 +474,7 @@ def post_merge_schema():
             v.Optional('associate_public_ip_address', default=True): bool,
             v.Optional('subnet', default=''): str,
             v.Optional('security_groups', default=[]): [str],
+            v.Optional('tags', default={}): {str: str},
             v.Optional('user_data', default=''): v.Or(
                 str,
                 {'file': str},

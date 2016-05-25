@@ -165,6 +165,8 @@ platforms:
     security_groups: [mafikizolo]
     user_data:
       file: user_data.txt
+    tags:
+      Name: maphorisa
 
   - name: amz-2015092
     source_ami: amzn-ami-hvm-2015.09.2.x86_64-gp2
@@ -284,6 +286,18 @@ This section is optional, and is where default parameters are set. These are the
    #!/bin/sh
    yum update
    yum upgrade -y
+ ```
+
+* `tags` - type: _map_ of _string_ to _string_, default: `{}`
+
+ A map of key, value pairs of strings that the EC2 instance will be tagged with.
+
+ Example:
+
+ ```
+ tags:
+   Name: professor
+   Description: A boss machine
  ```
 
 #### platforms
