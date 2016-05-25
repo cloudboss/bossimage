@@ -145,8 +145,9 @@ def create_instance(config, files, keyname):
     (instance,) = ec2.create_instances(**instance_params)
     print('Created instance {}'.format(instance.id))
 
-    tags = [{'Key': k, 'Value': v} for k, v in config['tags'].items()]
-    ec2.create_tags(Resources=[instance.id], Tags=tags)
+    if config['tags']:
+        tags = [{'Key': k, 'Value': v} for k, v in config['tags'].items()]
+        ec2.create_tags(Resources=[instance.id], Tags=tags)
 
     with Spinner('instance'):
         instance.wait_until_running()
