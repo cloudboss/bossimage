@@ -30,7 +30,11 @@ def test_merge_config():
             'subnet': '',
             'username': 'ec2-user',
             'user_data': '',
-        },
+            'tags': {
+                'Name': 'hello',
+                'Description': 'A description',
+            },
+         },
         'win-2012r2-default': {
             'ami_name': 'ami-00000000',
             'associate_public_ip_address': True,
@@ -47,7 +51,8 @@ def test_merge_config():
             'subnet': '',
             'username': 'Administrator',
             'user_data': '',
-        }
+            'tags': {},
+       }
     }
 
     c = cli.load_config('tests/resources/boss-good.yml')

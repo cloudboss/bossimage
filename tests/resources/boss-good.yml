@@ -20,3 +20,6 @@ platforms:
           volume_size: 100
           volume_type: gp2
           delete_on_termination: true
+    tags:
+      Name: hello
+      Description: A description
