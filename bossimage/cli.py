@@ -50,9 +50,11 @@ def delete(instance):
 
 @main.command('list')
 def lst():
-    for instance, created in bc.statuses(load_config()):
+    statuses = bc.statuses(load_config())
+    longest = sorted(len(status[0]) for status in statuses)[-1]
+    for instance, created in statuses:
         status = 'Created' if created else 'Not created'
-        click.echo('{:60}{}'.format(instance, status))
+        click.echo('{:{width}}{}'.format(instance, status, width=longest+4))
 
 @main.command()
 @click.argument('instance')
