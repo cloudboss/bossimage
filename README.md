@@ -52,7 +52,7 @@ Modify the role to add tasks, handlers, and vars as desired.
 List instances available to be built that are configured in .boss.yml:
 ```
 $ bi list
-amz-2015092-default
+amz-2015092-default    Created
 ```
 
 #### run
