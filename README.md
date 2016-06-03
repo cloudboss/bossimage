@@ -112,7 +112,7 @@ Show version.
 
 ```
 $ bi version
-0.1.9
+0.1.10
 ```
 
 ## More detail
