@@ -170,6 +170,7 @@ platforms:
 
   - name: amz-2015092
     source_ami: amzn-ami-hvm-2015.09.2.x86_64-gp2
+    connection_timeout: 333
     instance_type: m3.medium
     block_device_mappings:
       - device_name: /dev/sdf
@@ -219,6 +220,10 @@ This section is optional, and is where default parameters are set. These are the
 * `connection` - type: _string_, one of `ssh` or `winrm`, default: `ssh`
 
  Connection type for Ansible to use.
+
+* `connection_timeout` - type: _int_, default: `600`
+
+ Number of seconds before connection to instance times out.
 
 * `username` - type: _string_, default: `ec2-user`
 

@@ -40,6 +40,7 @@ import boto3 as boto
 import pkg_resources as pr
 import voluptuous as v
 
+class ConnectionTimeout(Exception): pass
 
 class Spinner(t.Thread):
     def __init__(self, waitable):
@@ -255,12 +256,14 @@ def wait_for_password(ec2_instance):
             else:
                 time.sleep(15)
 
-def wait_for_connection(addr, port, inventory, connection):
+def wait_for_connection(addr, port, inventory, connection, end):
     ping = 'win_ping' if connection == 'winrm' else 'ping'
     env = os.environ.copy()
     env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
 
     while(True):
+        if time.time() > end:
+            raise ConnectionTimeout('Timeout while connecting to {}:{}'.format(addr, port))
         try:
             # First check if port is open.
             socket.create_connection((addr, port), 1)
@@ -284,8 +287,9 @@ def run(instance, config, verbosity):
 
     ip = instance_info['ip']
     port = config['port']
+    end = time.time() + config['connection_timeout']
     with Spinner('connection to {}:{}'.format(ip, port)):
-        wait_for_connection(ip, port, files['inventory'], config['connection'])
+        wait_for_connection(ip, port, files['inventory'], config['connection'], end)
 
     env = os.environ.copy()
 
@@ -471,6 +475,7 @@ def post_merge_schema():
             v.Optional('become', default=True): bool,
             v.Optional('ami_name', default=default_ami_name): str,
             v.Optional('connection', default='ssh'): v.Or('ssh', 'winrm'),
+            v.Optional('connection_timeout', default=600): int,
             v.Optional('port', default=22): int,
             v.Optional('associate_public_ip_address', default=True): bool,
             v.Optional('subnet', default=''): str,

@@ -9,6 +9,7 @@ platforms:
     username: Administrator
     become: false
     connection: winrm
+    connection_timeout: 300
     port: 5985
 
   - name: amz-2015092

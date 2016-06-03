@@ -20,6 +20,7 @@ def test_merge_config():
                 }
             }],
             'connection': 'ssh',
+            'connection_timeout': 600,
             'extra_vars': {},
             'instance_type': 't2.micro',
             'platform': 'amz-2015092',
@@ -41,6 +42,7 @@ def test_merge_config():
             'become': False,
             'block_device_mappings': [],
             'connection': 'winrm',
+            'connection_timeout': 300,
             'extra_vars': {},
             'instance_type': 'm3.medium',
             'platform': 'win-2012r2',
