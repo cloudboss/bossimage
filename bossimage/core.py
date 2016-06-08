@@ -98,7 +98,7 @@ def camelify(spec):
 def gen_keyname():
     letters = string.ascii_letters + string.digits
     base = 'bossimage-'
-    rand = ''.join([letters[random.randrange(0, len(letters))] for _ in range(10)])
+    rand = ''.join(letters[random.randrange(0, len(letters))] for _ in range(10))
     return base + rand
 
 def create_working_dir():
