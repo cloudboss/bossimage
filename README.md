@@ -96,6 +96,7 @@ Clean up the EC2 instance and generated keypair.
 
 ```
 $ bi delete amz-2015092-default
+Deleted instance i-fafafafa and keypair bossimage-oZL4NxUbAM
 ```
 
 #### login
