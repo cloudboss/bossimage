@@ -349,6 +349,8 @@ def delete(instance):
     kp = ec2.KeyPair(name=c['keyname'])
     kp.delete()
 
+    print('Deleted instance {} and keypair {}'.format(ec2_instance.id, kp.name))
+
     for f in files.values():
         try:
             os.unlink(f)
