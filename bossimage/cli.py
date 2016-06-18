@@ -36,18 +36,14 @@ def main(): pass
               help='Verbosity, may be repeated up to 4 times')
 def run(instance, verbosity):
     with load_config() as c:
-        if instance not in c:
-            click.echo('No such instance {} configured'.format(instance))
-            raise click.Abort()
+        validate_instance(instance, c)
         bc.run(instance, c[instance], verbosity)
 
 @main.command()
 @click.argument('instance')
 def image(instance):
     with load_config() as c:
-        if instance not in c:
-            click.echo('No such instance {} configured'.format(instance))
-            raise click.Abort()
+        validate_instance(instance, c)
         bc.image(instance, c[instance])
 
 @main.command()
@@ -68,10 +64,16 @@ def lst():
 @click.argument('instance')
 def login(instance):
     with load_config() as c:
+        validate_instance(instance, c)
         if c[instance]['connection'] == 'winrm':
             click.echo('Login unsupported for winrm connections')
             raise click.Abort()
         bc.login(instance, c[instance])
+
+def validate_instance(instance, config):
+    if instance not in config:
+        click.echo('No such instance {} configured'.format(instance))
+        raise click.Abort()
 
 @main.command()
 def version():
