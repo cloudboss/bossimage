@@ -37,10 +37,12 @@ import yaml
 import Queue
 
 import boto3 as boto
+import jinja2 as j
 import pkg_resources as pr
 import voluptuous as v
 
 class ConnectionTimeout(Exception): pass
+class ConfigurationError(Exception): pass
 
 class Spinner(t.Thread):
     def __init__(self, waitable):
@@ -407,6 +409,24 @@ def subnet_id_for(name):
         ec2.subnets, name, 'subnet-',
         { 'Name': 'tag:Name', 'Values': [name] }
     )
+
+def load_config(path='.boss.yml'):
+    loader = j.FileSystemLoader('.')
+    pre_validate = pre_merge_schema()
+    post_validate = post_merge_schema()
+    try:
+        template = loader.load(j.Environment(), path, os.environ)
+        yml = template.render()
+        c = pre_validate(yaml.load(yml))
+        return post_validate(merge_config(c))
+    except j.TemplateNotFound as e:
+        raise ConfigurationError('Error loading {}: not found'.format(path))
+    except j.TemplateSyntaxError as e:
+        raise ConfigurationError('Error loading {}: {}, line {}'.format(path, e, e.lineno))
+    except IOError as e:
+        raise ConfigurationError('Error loading {}: {}'.format(path, e.strerror))
+    except v.Invalid as e:
+        raise ConfigurationError('Error validating {}: {}'.format(path, e))
 
 def merge_config(c):
     merged = {}

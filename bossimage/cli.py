@@ -17,11 +17,12 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-import click
+import contextlib
 import os
-import yaml
 
+import click
 import voluptuous as v
+import yaml
 
 import bossimage as b
 import bossimage.core as bc
@@ -34,14 +35,20 @@ def main(): pass
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
 def run(instance, verbosity):
-    config = load_config()[instance]
-    bc.run(instance, config, verbosity)
+    with load_config() as c:
+        if instance not in c:
+            click.echo('No such instance {} configured'.format(instance))
+            raise click.Abort()
+        bc.run(instance, c[instance], verbosity)
 
 @main.command()
 @click.argument('instance')
 def image(instance):
-    config = load_config()[instance]
-    bc.image(instance, config)
+    with load_config() as c:
+        if instance not in c:
+            click.echo('No such instance {} configured'.format(instance))
+            raise click.Abort()
+        bc.image(instance, c[instance])
 
 @main.command()
 @click.argument('instance')
@@ -50,7 +57,8 @@ def delete(instance):
 
 @main.command('list')
 def lst():
-    statuses = bc.statuses(load_config())
+    with load_config() as c:
+        statuses = bc.statuses(c)
     longest = sorted(len(status[0]) for status in statuses)[-1]
     for instance, created in statuses:
         status = 'Created' if created else 'Not created'
@@ -59,27 +67,21 @@ def lst():
 @main.command()
 @click.argument('instance')
 def login(instance):
-    config = load_config()[instance]
-    if config['connection'] == 'winrm':
-        click.echo('Login unsupported for winrm connections')
-        raise click.Abort()
-    bc.login(instance, config)
+    with load_config() as c:
+        if c[instance]['connection'] == 'winrm':
+            click.echo('Login unsupported for winrm connections')
+            raise click.Abort()
+        bc.login(instance, c[instance])
 
 @main.command()
 def version():
     click.echo(b.__version__)
 
-@bc.cached
-def load_config(path='.boss.yml'):
-    pre_validate = bc.pre_merge_schema()
-    post_validate = bc.post_merge_schema()
+@contextlib.contextmanager
+def load_config():
     try:
-        with open(path) as f:
-            c = pre_validate(yaml.load(f))
-        return post_validate(bc.merge_config(c))
-    except IOError as e:
-        click.echo('Error loading {}: {}'.format(path, e.strerror))
-        raise click.Abort()
-    except v.Invalid as e:
-        click.echo('Error validating {}: {}'.format(path, e))
+        c = bc.load_config()
+        yield c
+    except bc.ConfigurationError as e:
+        click.echo(e)
         raise click.Abort()

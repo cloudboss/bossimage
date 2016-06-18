@@ -151,6 +151,8 @@ You must set the AWS region you are running in. To do this, set the `AWS_DEFAULT
 ### Configuring an Ansible role with a `.boss.yml`
 `bossimage` must always be run from the root directory of an Ansible role, and is configured by a file called `.boss.yml` in that directory. The configuration is similar to the `.kitchen.yml` file used by Test Kitchen.
 
+The file may contain environment variables within [Jinja2](http://jinja.pocoo.org/) template tags, with built in [filters](http://jinja.pocoo.org/docs/dev/templates/#list-of-builtin-filters) available. The [`default`](http://jinja.pocoo.org/docs/dev/templates/#default) filter in particular is useful, which can set a default value if the environment variable is not found.
+
 Example:
 
 ```
@@ -165,7 +167,8 @@ platforms:
     subnet: professor
     security_groups: [mafikizolo]
     user_data:
-      file: user_data.txt
+      # Environment variable USER_DATA or default value.
+      file: {{ USER_DATA | default('user_data.txt') }}
     tags:
       Name: maphorisa
 

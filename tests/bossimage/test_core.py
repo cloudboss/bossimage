@@ -1,3 +1,5 @@
+import os
+
 import yaml
 from nose.tools import assert_equal
 from voluptuous import MultipleInvalid, TypeInvalid
@@ -57,7 +59,7 @@ def test_merge_config():
        }
     }
 
-    c = cli.load_config('tests/resources/boss-good.yml')
+    c = bc.load_config('tests/resources/boss-good.yml')
 
     assert_equal(c, expected)
 
@@ -88,7 +90,7 @@ def test_bad_config2():
         assert_equal(e.error_message, 'expected bool')
 
 def test_userdata():
-    c = cli.load_config('tests/resources/boss-userdata.yml')
+    c = bc.load_config('tests/resources/boss-userdata.yml')
 
     win_2012r2 = c['win-2012r2-default']
     win_2012r2_user_data = '''<powershell>
@@ -117,3 +119,16 @@ system_info:
 
     centos_7 = c['centos-7-default']
     assert_equal(bc.user_data(centos_7), '')
+
+def test_env_vars():
+    default_user = 'ec2-user'
+    override_user = 'shisaboy'
+
+    if 'BI_USERNAME' in os.environ: del(os.environ['BI_USERNAME'])
+
+    c1 = bc.load_config('tests/resources/boss-env.yml')
+    assert_equal(c1['amz-2015092-default']['username'], default_user)
+
+    os.environ['BI_USERNAME'] = override_user
+    c2 = bc.load_config('tests/resources/boss-env.yml')
+    assert_equal(c2['amz-2015092-default']['username'], override_user)
