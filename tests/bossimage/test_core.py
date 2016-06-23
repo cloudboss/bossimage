@@ -129,6 +129,17 @@ def test_load_config_not_found():
         'Error loading {}: not found'.format(nosuchfile)
     )
 
+def test_load_config_syntax_error():
+    filename = 'tests/resources/boss-badsyntax.yml'
+
+    with assert_raises(bc.ConfigurationError) as r:
+        bc.load_config(filename)
+
+    assert_equal(
+        r.exception.message,
+        "Error loading {}: expected token 'end of print statement', got ':', line 4".format(filename)
+    )
+
 def test_env_vars():
     default_user = 'ec2-user'
     override_user = 'shisaboy'
