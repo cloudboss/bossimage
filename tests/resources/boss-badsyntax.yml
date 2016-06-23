@@ -1,0 +1,4 @@
+platforms:
+  - name: win-2012r2
+    source_ami: {{
+    ami_name: 'ami-00000000'
