@@ -97,11 +97,12 @@ def camelify(spec):
     else:
         return spec
 
-def gen_keyname():
+def random_string(length=10):
     letters = string.ascii_letters + string.digits
-    base = 'bossimage-'
-    rand = ''.join(letters[random.randrange(0, len(letters))] for _ in range(10))
-    return base + rand
+    return ''.join(letters[random.randrange(0, len(letters))] for _ in range(length))
+
+def gen_keyname():
+    return 'bossimage-' + random_string()
 
 def create_working_dir():
     if not os.path.exists('.boss'): os.mkdir('.boss')

@@ -118,6 +118,17 @@ system_info:
     centos_7 = c['centos-7-default']
     assert_equal(bc.user_data(centos_7), '')
 
+def test_load_config_not_found():
+    nosuchfile = bc.random_string(100)
+
+    with assert_raises(bc.ConfigurationError) as r:
+        bc.load_config(nosuchfile)
+
+    assert_equal(
+        r.exception.message,
+        'Error loading {}: not found'.format(nosuchfile)
+    )
+
 def test_env_vars():
     default_user = 'ec2-user'
     override_user = 'shisaboy'
