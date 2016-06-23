@@ -63,30 +63,6 @@ def test_merge_config():
 
     assert_equal(c, expected)
 
-def test_bad_config1():
-    pre_validate = bc.pre_merge_schema()
-    post_validate = bc.post_merge_schema()
-
-    with open('tests/resources/boss-bad1.yml') as f:
-        c = yaml.load(f)
-
-    with assert_raises(MultipleInvalid) as r:
-        pre_validate(c)
-    assert_equal(r.exception.error_message, 'required key not provided')
-
-def test_bad_config2():
-    pre_validate = bc.pre_merge_schema()
-    post_validate = bc.post_merge_schema()
-
-    with open('tests/resources/boss-bad2.yml') as f:
-        c = pre_validate(yaml.load(f))
-
-    merged = bc.merge_config(c)
-
-    with assert_raises(MultipleInvalid) as r:
-        post_validate(merged)
-    assert_equal(r.exception.error_message, 'expected bool')
-
 def test_userdata():
     c = bc.load_config('tests/resources/boss-userdata.yml')
 
