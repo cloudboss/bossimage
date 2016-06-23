@@ -419,7 +419,7 @@ def load_config(path='.boss.yml'):
         yml = template.render()
         c = pre_validate(yaml.load(yml))
         return post_validate(merge_config(c))
-    except j.TemplateNotFound as e:
+    except j.TemplateNotFound:
         raise ConfigurationError('Error loading {}: not found'.format(path))
     except j.TemplateSyntaxError as e:
         raise ConfigurationError('Error loading {}: {}, line {}'.format(path, e, e.lineno))
