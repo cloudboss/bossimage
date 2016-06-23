@@ -140,6 +140,30 @@ def test_load_config_syntax_error():
         "Error loading {}: expected token 'end of print statement', got ':', line 4".format(filename)
     )
 
+def test_load_config_validation_error1():
+    filename = 'tests/resources/boss-bad1.yml'
+
+    with assert_raises(bc.ConfigurationError) as r:
+        bc.load_config(filename)
+
+    expected = "Error validating {}: required key not provided @ data['platforms'][0]['name']"
+    assert_equal(
+        r.exception.message,
+        expected.format(filename)
+    )
+
+def test_load_config_validation_error2():
+    filename = 'tests/resources/boss-bad2.yml'
+
+    with assert_raises(bc.ConfigurationError) as r:
+        bc.load_config(filename)
+
+    expected = "Error validating {}: expected bool for dictionary value @ data['win-2012r2-default']['become']"
+    assert_equal(
+        r.exception.message,
+        expected.format(filename)
+    )
+
 def test_env_vars():
     default_user = 'ec2-user'
     override_user = 'shisaboy'
