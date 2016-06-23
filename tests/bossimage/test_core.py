@@ -135,9 +135,10 @@ def test_load_config_syntax_error():
     with assert_raises(bc.ConfigurationError) as r:
         bc.load_config(filename)
 
+    expected = "Error loading {}: expected token 'end of print statement', got ':', line 4"
     assert_equal(
         r.exception.message,
-        "Error loading {}: expected token 'end of print statement', got ':', line 4".format(filename)
+        expected.format(filename)
     )
 
 def test_load_config_validation_error1():
