@@ -1,7 +1,7 @@
 import os
 
 import yaml
-from nose.tools import assert_equal
+from nose.tools import assert_equal, assert_raises
 from voluptuous import MultipleInvalid, TypeInvalid
 
 import bossimage.cli as cli
@@ -70,10 +70,9 @@ def test_bad_config1():
     with open('tests/resources/boss-bad1.yml') as f:
         c = yaml.load(f)
 
-    try:
+    with assert_raises(MultipleInvalid) as r:
         pre_validate(c)
-    except MultipleInvalid as e:
-        assert_equal(e.error_message, 'required key not provided')
+    assert_equal(r.exception.error_message, 'required key not provided')
 
 def test_bad_config2():
     pre_validate = bc.pre_merge_schema()
@@ -84,10 +83,9 @@ def test_bad_config2():
 
     merged = bc.merge_config(c)
 
-    try:
+    with assert_raises(MultipleInvalid) as r:
         post_validate(merged)
-    except MultipleInvalid as e:
-        assert_equal(e.error_message, 'expected bool')
+    assert_equal(r.exception.error_message, 'expected bool')
 
 def test_userdata():
     c = bc.load_config('tests/resources/boss-userdata.yml')
