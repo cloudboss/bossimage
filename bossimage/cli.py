@@ -19,6 +19,7 @@
 # THE SOFTWARE.
 import contextlib
 import os
+import sys
 
 import click
 import voluptuous as v
@@ -37,7 +38,7 @@ def main(): pass
 def run(instance, verbosity):
     with load_config() as c:
         validate_instance(instance, c)
-        bc.run(instance, c[instance], verbosity)
+        sys.exit(bc.run(instance, c[instance], verbosity))
 
 @main.command()
 @click.argument('instance')

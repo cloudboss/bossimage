@@ -313,7 +313,7 @@ def run(instance, config, verbosity):
         ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
     ansible_playbook_args.append(files['playbook'])
     ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
-    ansible_playbook.wait()
+    return ansible_playbook.wait()
 
 def image(instance, config):
     files = instance_files(instance)
