@@ -134,6 +134,7 @@ def tag_instance(tags, instance):
         Resources=[instance.id],
         Tags=[{'Key': k, 'Value': v} for k, v in tags.items()]
     )
+    print('Tagged instance with {}'.format(tags))
 
 def create_instance(config, files, keyname):
     create_keypair(keyname, files['keyfile'])
