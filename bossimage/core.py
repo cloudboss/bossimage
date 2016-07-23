@@ -360,11 +360,11 @@ def delete(instance):
 
     ec2_instance = ec2.Instance(id=c['id'])
     ec2_instance.terminate()
+    print('Deleted instance {}'.format(ec2_instance.id))
 
     kp = ec2.KeyPair(name=c['keyname'])
     kp.delete()
-
-    print('Deleted instance {} and keypair {}'.format(ec2_instance.id, kp.name))
+    print('Deleted keypair {}'.format(kp.name))
 
     for f in files.values():
         try:
