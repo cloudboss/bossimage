@@ -45,9 +45,9 @@ class ConnectionTimeout(Exception): pass
 class ConfigurationError(Exception): pass
 
 class Spinner(t.Thread):
-    def __init__(self, waitable):
+    def __init__(self, waitable, state='to be available'):
         t.Thread.__init__(self)
-        self.msg = 'Waiting for {} to be available ...  '.format(waitable)
+        self.msg = 'Waiting for {} {} ...  '.format(waitable, state)
         self.running = False
         self.chars = itertools.cycle(r'-\|/')
         self.q = Queue.Queue()
@@ -149,11 +149,14 @@ def create_instance(config, files, keyname):
     (instance,) = ec2.create_instances(**instance_params)
     print('Created instance {}'.format(instance.id))
 
+    with Spinner('instance', 'to exist'):
+        instance.wait_until_exists()
+
     if config['tags']:
         tags = [{'Key': k, 'Value': v} for k, v in config['tags'].items()]
         ec2.create_tags(Resources=[instance.id], Tags=tags)
 
-    with Spinner('instance'):
+    with Spinner('instance', 'to be running'):
         instance.wait_until_running()
 
     instance.reload()
