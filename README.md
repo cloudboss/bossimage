@@ -59,8 +59,9 @@ amz-2015092-default    Created
 Build an EC2 instance and run the Ansible role on it:
 ```
 $ bi run amz-2015092-default
+Created keypair bossimage-oZL4NxUbAM
 Created instance i-00000000
-Waiting for instance to be available ... ok
+Waiting for instance to be running ... ok
 Waiting for connection to 54.xxx.xxx.xxx:22 to be available ... ok
 
 PLAY ***************************************************************************
