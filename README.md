@@ -23,7 +23,7 @@ pip install .
 
 # Usage
 ## Quick start
-After installation, the `bi` command is provided, which has the subcommands `list`, `run`, `image`, `delete`, `login`, and `version`.
+After installation, the `bi` command is provided, which has the subcommands `list`, `run`, `image`, `delete`, `login`, `info`, and `version`.
 
 AWS region and credentials must be set.
 
@@ -106,6 +106,39 @@ Log into an EC2 instance that has been created with `run`. This is only supporte
 $ bi login amz-2015092-default
 Last login: Tue Mar 29 15:18:01 2016 from kalawa.example.com
 [ec2-user@ip-172-31-15-45 ~]$
+```
+
+#### info
+Show configuration information for a given instance.
+
+```
+$ bi info amz-2015092-default
+{
+  "profile": "default",
+  "username": "ec2-user",
+  "source_ami": "amzn-ami-hvm-2015.09.2.x86_64-gp2",
+  "platform": "amz-2015092",
+  "subnet": "",
+  "extra_vars": {},
+  "ami_name": "%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s",
+  "user_data": "",
+  "instance_type": "t2.micro",
+  "connection": "ssh",
+  "tags": {},
+  "associate_public_ip_address": true,
+  "become": true,
+  "connection_timeout": 600,
+  "port": 22,
+  "security_groups": [],
+  "block_device_mappings": []
+}
+```
+
+Or return the value of just one attribute.
+
+```
+$ bi info amz-2015092-default -a source_ami
+amzn-ami-hvm-2015.09.2.x86_64-gp2
 ```
 
 #### version

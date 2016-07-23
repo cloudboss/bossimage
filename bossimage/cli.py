@@ -18,6 +18,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 import contextlib
+import json
 import os
 import sys
 
@@ -71,14 +72,29 @@ def login(instance):
             raise click.Abort()
         bc.login(instance, c[instance])
 
-def validate_instance(instance, config):
-    if instance not in config:
-        click.echo('No such instance {} configured'.format(instance))
-        raise click.Abort()
+@main.command()
+@click.option('-a', '--attribute')
+@click.argument('instance')
+def info(attribute, instance):
+    with load_config() as c:
+        validate_instance(instance, c)
+        if not attribute:
+            click.echo(json.dumps(c[instance], indent=2, separators=(',', ': ')))
+        else:
+            if attribute not in c[instance]:
+                click.echo('No such attribute {}'.format(attribute))
+                raise click.Abort()
+            else:
+                click.echo(c[instance][attribute])
 
 @main.command()
 def version():
     click.echo(b.__version__)
+
+def validate_instance(instance, config):
+    if instance not in config:
+        click.echo('No such instance {} configured'.format(instance))
+        raise click.Abort()
 
 @contextlib.contextmanager
 def load_config():
