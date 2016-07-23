@@ -118,13 +118,25 @@ def user_data(config):
         ud = config['user_data']
     return ud
 
-def create_instance(config, files, keyname):
-    ec2 = ec2_connect()
-    kp = ec2.create_key_pair(KeyName=keyname)
+def create_keypair(keyname, keyfile):
+    kp = ec2_connect().create_key_pair(KeyName=keyname)
+    print('Created keypair {}'.format(keyname))
 
-    with open(files['keyfile'], 'w') as f:
+    with open(keyfile, 'w') as f:
         f.write(kp.key_material)
-    os.chmod(files['keyfile'], 0600)
+    os.chmod(keyfile, 0600)
+
+def tag_instance(tags, instance):
+    with Spinner('instance', 'to exist'):
+        instance.wait_until_exists()
+
+    ec2_connect().create_tags(
+        Resources=[instance.id],
+        Tags=[{'Key': k, 'Value': v} for k, v in tags.items()]
+    )
+
+def create_instance(config, files, keyname):
+    create_keypair(keyname, files['keyfile'])
 
     instance_params = dict(
         ImageId=ami_id_for(config['source_ami']),
@@ -146,15 +158,11 @@ def create_instance(config, files, keyname):
         sg_ids = [sg_id_for(name) for name in config['security_groups']]
         instance_params['NetworkInterfaces'][0]['Groups'] = sg_ids
 
-    (instance,) = ec2.create_instances(**instance_params)
+    (instance,) = ec2_connect().create_instances(**instance_params)
     print('Created instance {}'.format(instance.id))
 
-    with Spinner('instance', 'to exist'):
-        instance.wait_until_exists()
-
     if config['tags']:
-        tags = [{'Key': k, 'Value': v} for k, v in config['tags'].items()]
-        ec2.create_tags(Resources=[instance.id], Tags=tags)
+        tag_instance(config['tags'], instance)
 
     with Spinner('instance', 'to be running'):
         instance.wait_until_running()
