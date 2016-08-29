@@ -121,6 +121,11 @@ def clean(): pass
 def clean_instance(instance):
     bc.delete(instance)
 
+@clean.command('image')
+@click.argument('instance')
+def clean_image(instance):
+    bc.clean_image(instance)
+
 def validate_instance(instance, config):
     if instance not in config:
         click.echo('No such instance {} configured'.format(instance))

@@ -370,6 +370,10 @@ def image(instance, config):
 
     wait_for_image(image)
 
+    c['ami_id'] = image.id
+    with open(files['config'], 'w') as f:
+        f.write(yaml.safe_dump(c))
+
 def delete(instance):
     files = instance_files(instance)
 
@@ -391,6 +395,21 @@ def delete(instance):
             os.unlink(f)
         except OSError:
             print('Error removing {}, skipping'.format(f))
+
+def clean_image(instance):
+    files = instance_files(instance)
+    with open(files['config']) as f:
+        config = yaml.load(f)
+
+    print('Deregistering image {}'.format(config['ami_id']))
+
+    (image,) = ec2_connect().images.filter(ImageIds=[config['ami_id']])
+    image.load()
+    image.deregister()
+
+    del(config['ami_id'])
+    with open(files['config'], 'w') as f:
+        f.write(yaml.safe_dump(config))
 
 def statuses(config):
     def exists(instance):
