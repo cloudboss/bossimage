@@ -37,6 +37,7 @@ def main(): pass
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
 def run(instance, verbosity):
+    click.echo('Warning: the `run` command is being deprecated, please use `build instance` instead')
     with load_config() as c:
         validate_instance(instance, c)
         sys.exit(bc.run(instance, c[instance], verbosity))
@@ -44,6 +45,7 @@ def run(instance, verbosity):
 @main.command()
 @click.argument('instance')
 def image(instance):
+    click.echo('Warning: the `image` command is being deprecated, please use `build image` instead')
     with load_config() as c:
         validate_instance(instance, c)
         bc.image(instance, c[instance])
@@ -51,6 +53,7 @@ def image(instance):
 @main.command()
 @click.argument('instance')
 def delete(instance):
+    click.echo('Warning: the `delete` command is being deprecated, please use `clean instance` instead')
     bc.delete(instance)
 
 @main.command('list')
@@ -90,6 +93,33 @@ def info(attribute, instance):
 @main.command()
 def version():
     click.echo(b.__version__)
+
+@main.group()
+def build(): pass
+
+@build.command('instance')
+@click.argument('instance')
+@click.option('-v', '--verbosity', count=True,
+              help='Verbosity, may be repeated up to 4 times')
+def build_instance(instance, verbosity):
+    with load_config() as c:
+        validate_instance(instance, c)
+        sys.exit(bc.run(instance, c[instance], verbosity))
+
+@build.command('image')
+@click.argument('instance')
+def build_image(instance):
+    with load_config() as c:
+        validate_instance(instance, c)
+        bc.image(instance, c[instance])
+
+@main.group()
+def clean(): pass
+
+@clean.command('instance')
+@click.argument('instance')
+def clean_instance(instance):
+    bc.delete(instance)
 
 def validate_instance(instance, config):
     if instance not in config:
