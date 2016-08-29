@@ -19,6 +19,7 @@
 # THE SOFTWARE.
 from __future__ import print_function
 import base64
+import ConfigParser as cp
 import functools as f
 import itertools
 import json
@@ -191,6 +192,38 @@ def decrypt_password(password_file, keyfile):
     password, _ = openssl.communicate()
     return password
 
+def write_inventory(path, group, ip, keyfile, username, password, port, connection):
+    # ConfigParser is only being used to parse the inventory with its INI style groups.
+    # Unlike most INI files, each item under a group is a single value, not a
+    # key/value pair. Setting `allow_no_value` to `True` allows the ConfigParser object
+    # to write an entry without adding a value to it.
+    inventory = cp.ConfigParser(allow_no_value=True)
+
+    # To prevent entry getting downcased.
+    # https://docs.python.org/2/library/configparser.html#ConfigParser.RawConfigParser.optionxform
+    inventory.optionxform = str
+
+    if os.path.exists(path):
+        with open(path) as f:
+            inventory.read(f)
+
+    entry = '{} ' \
+            'ansible_ssh_private_key_file={} ' \
+            'ansible_user={} ' \
+            'ansible_password={} ' \
+            'ansible_port={} ' \
+            'ansible_connection={}'.format(
+                ip, keyfile, username, password, port, connection
+            )
+
+    inventory.add_section(group)
+    inventory.set(group, entry)
+
+    with open(path, 'w') as f:
+        inventory.write(f)
+
+    os.chmod(path, 0600)
+
 def write_files(files, ec2_instance, keyname, config, password):
     if config['associate_public_ip_address']:
         ip_address = ec2_instance.public_ip_address
@@ -205,26 +238,14 @@ def write_files(files, ec2_instance, keyname, config, password):
             platform=config['platform'],
         )))
 
-    with open(files['inventory'], 'w') as f:
-        inventory = '{} ' \
-                    'ansible_ssh_private_key_file={} ' \
-                    'ansible_user={} ' \
-                    'ansible_password={} ' \
-                    'ansible_port={} ' \
-                    'ansible_connection={}'.format(
-                        ip_address,
-                        files['keyfile'],
-                        config['username'],
-                        password,
-                        config['port'],
-                        config['connection'],
-                    )
-        f.write(inventory)
-    os.chmod(files['inventory'], 0600)
+    write_inventory(
+        files['inventory'], 'ami', ip_address, files['keyfile'],
+        config['username'], password, config['port'], config['connection']
+    )
 
     with open(files['playbook'], 'w') as f:
         f.write(yaml.safe_dump([dict(
-            hosts='all',
+            hosts='ami',
             become=config['become'],
             roles=[role_name()],
         )]))
@@ -271,7 +292,7 @@ def wait_for_password(ec2_instance):
             else:
                 time.sleep(15)
 
-def wait_for_connection(addr, port, inventory, connection, end):
+def wait_for_connection(addr, port, inventory, group, connection, end):
     ping = 'win_ping' if connection == 'winrm' else 'ping'
     env = os.environ.copy()
     env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
@@ -287,7 +308,7 @@ def wait_for_connection(addr, port, inventory, connection, end):
             # Now check if we can actually log in.
             with open('/dev/null', 'wb') as devnull:
                 ret = subprocess.call([
-                    'ansible', 'all', '-i', inventory, '-m', ping
+                    'ansible', group, '-i', inventory, '-m', ping
                 ], stderr=devnull, stdout=devnull, env=env)
                 if ret == 0: break
                 else: raise
@@ -304,7 +325,7 @@ def run(instance, config, verbosity):
     port = config['port']
     end = time.time() + config['connection_timeout']
     with Spinner('connection to {}:{}'.format(ip, port)):
-        wait_for_connection(ip, port, files['inventory'], config['connection'], end)
+        wait_for_connection(ip, port, files['inventory'], 'ami', config['connection'], end)
 
     env = os.environ.copy()
 
