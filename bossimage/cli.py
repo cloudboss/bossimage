@@ -37,7 +37,7 @@ def main(): pass
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
 def run(instance, verbosity):
-    click.echo('Warning: the `run` command is being deprecated, please use `build instance` instead')
+    click.echo('Warning: the `run` command is being deprecated, please use `make build` instead')
     with load_config() as c:
         validate_instance(instance, c)
         sys.exit(bc.run(instance, c[instance], verbosity))
@@ -45,7 +45,7 @@ def run(instance, verbosity):
 @main.command()
 @click.argument('instance')
 def image(instance):
-    click.echo('Warning: the `image` command is being deprecated, please use `build image` instead')
+    click.echo('Warning: the `image` command is being deprecated, please use `make image` instead')
     with load_config() as c:
         validate_instance(instance, c)
         bc.image(instance, c[instance])
@@ -53,7 +53,7 @@ def image(instance):
 @main.command()
 @click.argument('instance')
 def delete(instance):
-    click.echo('Warning: the `delete` command is being deprecated, please use `clean instance` instead')
+    click.echo('Warning: the `delete` command is being deprecated, please use `clean build` instead')
     bc.delete(instance)
 
 @main.command('list')
@@ -95,20 +95,20 @@ def version():
     click.echo(b.__version__)
 
 @main.group()
-def build(): pass
+def make(): pass
 
-@build.command('instance')
+@make.command('build')
 @click.argument('instance')
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
-def build_instance(instance, verbosity):
+def make_build(instance, verbosity):
     with load_config() as c:
         validate_instance(instance, c)
         sys.exit(bc.run(instance, c[instance], verbosity))
 
-@build.command('image')
+@make.command('image')
 @click.argument('instance')
-def build_image(instance):
+def make_image(instance):
     with load_config() as c:
         validate_instance(instance, c)
         bc.image(instance, c[instance])
@@ -116,9 +116,9 @@ def build_image(instance):
 @main.group()
 def clean(): pass
 
-@clean.command('instance')
+@clean.command('build')
 @click.argument('instance')
-def clean_instance(instance):
+def clean_build(instance):
     bc.delete(instance)
 
 @clean.command('image')
