@@ -239,13 +239,13 @@ def write_files(files, ec2_instance, keyname, config, password):
         )))
 
     write_inventory(
-        files['inventory'], 'ami', ip_address, files['keyfile'],
+        files['inventory'], 'build', ip_address, files['keyfile'],
         config['username'], password, config['port'], config['connection']
     )
 
     with open(files['playbook'], 'w') as f:
         f.write(yaml.safe_dump([dict(
-            hosts='ami',
+            hosts='build',
             become=config['become'],
             roles=[role_name()],
         )]))
@@ -324,7 +324,7 @@ def make_build(instance, config, verbosity):
     port = config['port']
     end = time.time() + config['connection_timeout']
     with Spinner('connection to {}:{}'.format(ip, port)):
-        wait_for_connection(ip, port, files['inventory'], 'ami', config['connection'], end)
+        wait_for_connection(ip, port, files['inventory'], 'build', config['connection'], end)
 
     env = os.environ.copy()
 
