@@ -230,12 +230,13 @@ def write_files(files, ec2_instance, keyname, config, password):
     else:
         ip_address = ec2_instance.private_ip_address
 
-    with open(files['config'], 'w') as f:
+    with open(files['state'], 'w') as f:
         f.write(yaml.safe_dump(dict(
-            id=ec2_instance.id,
-            ip=ip_address,
             keyname=keyname,
-            platform=config['platform'],
+            build=dict(
+                id=ec2_instance.id,
+                ip=ip_address
+            )
         )))
 
     write_inventory(
@@ -254,7 +255,7 @@ def load_or_create_instance(config):
     instance = '{}-{}'.format(config['platform'], config['profile'])
     files = instance_files(instance)
 
-    if not os.path.exists(files['config']):
+    if not os.path.exists(files['state']):
         keyname = gen_keyname()
         ec2_instance = create_instance(config, files, keyname)
 
@@ -270,7 +271,7 @@ def load_or_create_instance(config):
 
         write_files(files, ec2_instance, keyname, config, password)
 
-    with open(files['config']) as f:
+    with open(files['state']) as f:
         return yaml.load(f)
 
 def wait_for_image(image):
@@ -320,7 +321,7 @@ def make_build(instance, config, verbosity):
 
     instance_info = load_or_create_instance(config)
 
-    ip = instance_info['ip']
+    ip = instance_info['build']['ip']
     port = config['port']
     end = time.time() + config['connection_timeout']
     with Spinner('connection to {}:{}'.format(ip, port)):
@@ -349,11 +350,11 @@ def make_build(instance, config, verbosity):
 
 def make_image(instance, config):
     files = instance_files(instance)
-    with open(files['config']) as f:
-        c = yaml.load(f)
+    with open(files['state']) as f:
+        state = yaml.load(f)
 
     ec2 = ec2_connect()
-    ec2_instance = ec2.Instance(id=c['id'])
+    ec2_instance = ec2.Instance(id=state['build']['id'])
     ec2_instance.load()
 
     config.update({
@@ -370,23 +371,23 @@ def make_image(instance, config):
 
     wait_for_image(image)
 
-    c['ami_id'] = image.id
-    with open(files['config'], 'w') as f:
-        f.write(yaml.safe_dump(c))
+    state['ami_id'] = image.id
+    with open(files['state'], 'w') as f:
+        f.write(yaml.safe_dump(state))
 
 def clean_build(instance):
     files = instance_files(instance)
 
-    with open(files['config']) as f:
-        c = yaml.load(f)
+    with open(files['state']) as f:
+        state = yaml.load(f)
 
     ec2 = ec2_connect()
 
-    ec2_instance = ec2.Instance(id=c['id'])
+    ec2_instance = ec2.Instance(id=state['build']['id'])
     ec2_instance.terminate()
     print('Deleted instance {}'.format(ec2_instance.id))
 
-    kp = ec2.KeyPair(name=c['keyname'])
+    kp = ec2.KeyPair(name=state['keyname'])
     kp.delete()
     print('Deleted keypair {}'.format(kp.name))
 
@@ -398,18 +399,18 @@ def clean_build(instance):
 
 def clean_image(instance):
     files = instance_files(instance)
-    with open(files['config']) as f:
-        config = yaml.load(f)
+    with open(files['state']) as f:
+        state = yaml.load(f)
 
-    print('Deregistering image {}'.format(config['ami_id']))
+    print('Deregistering image {}'.format(state['ami_id']))
 
-    (image,) = ec2_connect().images.filter(ImageIds=[config['ami_id']])
+    (image,) = ec2_connect().images.filter(ImageIds=[state['ami_id']])
     image.load()
     image.deregister()
 
-    del(config['ami_id'])
-    with open(files['config'], 'w') as f:
-        f.write(yaml.safe_dump(config))
+    del(state['ami_id'])
+    with open(files['state'], 'w') as f:
+        f.write(yaml.safe_dump(state))
 
 def statuses(config):
     def exists(instance):
@@ -419,18 +420,18 @@ def statuses(config):
 def login(instance, config):
     files = instance_files(instance)
 
-    with open(files['config']) as f:
-        c = yaml.load(f)
+    with open(files['state']) as f:
+        state = yaml.load(f)
 
     ssh = subprocess.Popen([
         'ssh', '-i', files['keyfile'],
-        '-l', config['username'], c['ip']
+        '-l', config['username'], state['build']['ip']
     ])
     ssh.wait()
 
 def instance_files(instance):
     return dict(
-        config='.boss/{}.yml'.format(instance),
+        state='.boss/{}-state.yml'.format(instance),
         keyfile='.boss/{}.pem'.format(instance),
         inventory='.boss/{}.inventory'.format(instance),
         playbook='.boss/{}-playbook.yml'.format(instance),
