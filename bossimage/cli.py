@@ -40,7 +40,7 @@ def run(instance, verbosity):
     click.echo('Warning: the `run` command is being deprecated, please use `make build` instead')
     with load_config() as c:
         validate_instance(instance, c)
-        sys.exit(bc.run(instance, c[instance], verbosity))
+        sys.exit(bc.make_build(instance, c[instance], verbosity))
 
 @main.command()
 @click.argument('instance')
@@ -48,13 +48,13 @@ def image(instance):
     click.echo('Warning: the `image` command is being deprecated, please use `make image` instead')
     with load_config() as c:
         validate_instance(instance, c)
-        bc.image(instance, c[instance])
+        bc.make_image(instance, c[instance])
 
 @main.command()
 @click.argument('instance')
 def delete(instance):
     click.echo('Warning: the `delete` command is being deprecated, please use `clean build` instead')
-    bc.delete(instance)
+    bc.clean_build(instance)
 
 @main.command('list')
 def lst():
@@ -104,14 +104,14 @@ def make(): pass
 def make_build(instance, verbosity):
     with load_config() as c:
         validate_instance(instance, c)
-        sys.exit(bc.run(instance, c[instance], verbosity))
+        sys.exit(bc.make_build(instance, c[instance], verbosity))
 
 @make.command('image')
 @click.argument('instance')
 def make_image(instance):
     with load_config() as c:
         validate_instance(instance, c)
-        bc.image(instance, c[instance])
+        bc.make_image(instance, c[instance])
 
 @main.group()
 def clean(): pass
@@ -119,7 +119,7 @@ def clean(): pass
 @clean.command('build')
 @click.argument('instance')
 def clean_build(instance):
-    bc.delete(instance)
+    bc.clean_build(instance)
 
 @clean.command('image')
 @click.argument('instance')

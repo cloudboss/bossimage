@@ -314,7 +314,7 @@ def wait_for_connection(addr, port, inventory, group, connection, end):
         except:
             time.sleep(15)
 
-def run(instance, config, verbosity):
+def make_build(instance, config, verbosity):
     create_working_dir()
     files = instance_files(instance)
 
@@ -347,7 +347,7 @@ def run(instance, config, verbosity):
     ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
     return ansible_playbook.wait()
 
-def image(instance, config):
+def make_image(instance, config):
     files = instance_files(instance)
     with open(files['config']) as f:
         c = yaml.load(f)
@@ -374,7 +374,7 @@ def image(instance, config):
     with open(files['config'], 'w') as f:
         f.write(yaml.safe_dump(c))
 
-def delete(instance):
+def clean_build(instance):
     files = instance_files(instance)
 
     with open(files['config']) as f:
