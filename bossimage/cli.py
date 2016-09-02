@@ -40,7 +40,7 @@ def run(instance, verbosity):
     click.echo('Warning: the `run` command is being deprecated, please use `make build` instead')
     with load_config() as c:
         validate_instance(instance, c)
-        sys.exit(bc.make_build(instance, c[instance], verbosity))
+        sys.exit(bc.run(instance, c[instance], verbosity))
 
 @main.command()
 @click.argument('instance')

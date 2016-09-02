@@ -315,7 +315,7 @@ def wait_for_connection(addr, port, inventory, group, connection, end):
         except:
             time.sleep(15)
 
-def make_build(instance, config, verbosity):
+def run(instance, config, verbosity):
     create_working_dir()
     files = instance_files(instance)
 
@@ -347,6 +347,9 @@ def make_build(instance, config, verbosity):
     ansible_playbook_args.append(files['playbook'])
     ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
     return ansible_playbook.wait()
+
+def make_build(instance, config, verbosity):
+    return run(instance, config, verbosity)
 
 def make_image(instance, config):
     files = instance_files(instance)
