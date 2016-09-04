@@ -474,7 +474,29 @@ def load_config(path='.boss.yml'):
         template = loader.load(j.Environment(), path, os.environ)
         yml = template.render()
         c = pre_validate(yaml.load(yml))
+        if 'driver' in c:
+            print('Warning: in .boss.yml, `driver` is being deprecated, please use `defaults` instead')
+            c['defaults'] = c['driver']
+            del(c['driver'])
+        if 'defaults' not in c:
+            c['defaults'] = {}
         return post_validate(merge_config(c))
+    except j.TemplateNotFound:
+        raise ConfigurationError('Error loading {}: not found'.format(path))
+    except j.TemplateSyntaxError as e:
+        raise ConfigurationError('Error loading {}: {}, line {}'.format(path, e, e.lineno))
+    except IOError as e:
+        raise ConfigurationError('Error loading {}: {}'.format(path, e.strerror))
+    except v.Invalid as e:
+        raise ConfigurationError('Error validating {}: {}'.format(path, e))
+
+def load_config_v2(path='.boss.yml'):
+    loader = j.FileSystemLoader('.')
+    try:
+        template = loader.load(j.Environment(), path, os.environ)
+        yml = template.render()
+        doc = yaml.load(yml)
+        return transform_config(schema_v2(doc))
     except j.TemplateNotFound:
         raise ConfigurationError('Error loading {}: not found'.format(path))
     except j.TemplateSyntaxError as e:
@@ -494,7 +516,7 @@ def merge_config(c):
             }
             merged[instance]['platform'] = platform['name']
             merged[instance].update({
-                k: v for k, v in c['driver'].items() if k not in platform
+                k: v for k, v in c['defaults'].items() if k not in platform
             })
             merged[instance].update({
                 k: v for k, v in profile.items() if k != 'name'
@@ -539,6 +561,116 @@ def pre_merge_schema():
             v.Required('name'): str,
         }],
     }, extra=v.ALLOW_EXTRA)
+
+def schema_v2(doc):
+    base = {
+        v.Optional('instance_type'): str,
+        v.Optional('username'): str,
+        v.Optional('connection'): v.Or('ssh', 'winrm'),
+        v.Optional('connection_timeout'): int,
+        v.Optional('port'): int,
+        v.Optional('associate_public_ip_address'): bool,
+        v.Optional('subnet'): str,
+        v.Optional('security_groups'): [str],
+        v.Optional('tags'): {str: str},
+        v.Optional('user_data'): v.Or(
+            str,
+            {'file': str},
+        ),
+        v.Optional('block_device_mappings'): [{
+            v.Required('device_name'): str,
+            'ebs': {
+                'volume_size': int,
+                'volume_type': is_volume_type,
+                'delete_on_termination': bool,
+                'encrypted': bool,
+                'iops': int,
+                'snapshot_id': is_snapshot_id,
+            },
+            'no_device': str,
+            'virtual_name': is_virtual_name,
+        }],
+    }
+    defaults = {
+        v.Optional('instance_type', default='t2.micro'): str,
+        v.Optional('username', default='ec2-user'): str,
+        v.Optional('connection', default='ssh'): v.Or('ssh', 'winrm'),
+        v.Optional('connection_timeout', default=600): int,
+        v.Optional('port', default=22): int,
+        v.Optional('associate_public_ip_address', default=True): bool,
+        v.Optional('subnet', default=''): str,
+        v.Optional('security_groups', default=[]): [str],
+        v.Optional('tags', default={}): {str: str},
+        v.Optional('user_data', default=''): v.Or(
+            str,
+            {'file': str},
+        ),
+        v.Optional('block_device_mappings', default=[]): [{
+            v.Required('device_name'): str,
+            'ebs': {
+                'volume_size': int,
+                'volume_type': is_volume_type,
+                'delete_on_termination': bool,
+                'encrypted': bool,
+                'iops': int,
+                'snapshot_id': is_snapshot_id,
+            },
+            'no_device': str,
+            'virtual_name': is_virtual_name,
+        }],
+    }
+    build = base.copy()
+    default_ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
+    build.update({
+        v.Required('source_ami'): str,
+        v.Optional('ami_name', default=default_ami_name): str,
+        v.Optional('become', default=True): bool,
+        v.Optional('vars', default={}): dict,
+    })
+    platform = base.copy()
+    platform.update({
+        v.Required('name'): str,
+        v.Required('build'): build,
+        v.Optional('test', default={}): base.copy(),
+    })
+    profile = {
+        v.Required('name'): str,
+        v.Optional('vars', default={}): dict
+    }
+    return v.Schema({
+        v.Optional('defaults', default={}): defaults,
+        v.Required('platforms'): [platform],
+        v.Optional('profiles', default=[{ 'name': 'default', 'vars': {}}]): [profile],
+    })(doc)
+
+def transform_config(doc):
+    validated = schema_v2(doc)
+    transformed = {}
+    excluded_items = ('name', 'build', 'test')
+    for platform in validated['platforms']:
+        for profile in validated['profiles']:
+            instance = '{}-{}'.format(platform['name'], profile['name'])
+            transformed[instance] = {}
+
+            transformed[instance]['build'] = doc['defaults'].copy()
+            transformed[instance]['build'].update({
+                k: v for k, v in platform.items() if k not in excluded_items
+            })
+            transformed[instance]['build'].update(platform['build'].copy())
+            transformed[instance]['build'].update({
+                'vars':  profile['vars'].copy(),
+                'platform': platform['name'],
+                'profile': profile['name'],
+            })
+
+            transformed[instance]['test'] = doc['defaults'].copy()
+            transformed[instance]['test'].update({
+                k: v for k, v in platform.items() if k not in excluded_items
+            })
+
+            transformed[instance]['platform'] = platform['name']
+            transformed[instance]['profile'] = profile['name']
+    return transformed
 
 def post_merge_schema():
     default_ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'

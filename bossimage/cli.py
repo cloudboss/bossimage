@@ -102,9 +102,9 @@ def make(): pass
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
 def make_build(instance, verbosity):
-    with load_config() as c:
+    with load_config_v2() as c:
         validate_instance(instance, c)
-        sys.exit(bc.make_build(instance, c[instance], verbosity))
+        sys.exit(bc.make_build(instance, c[instance]['build'], verbosity))
 
 @make.command('image')
 @click.argument('instance')
@@ -135,6 +135,15 @@ def validate_instance(instance, config):
 def load_config():
     try:
         c = bc.load_config()
+        yield c
+    except bc.ConfigurationError as e:
+        click.echo(e)
+        raise click.Abort()
+
+@contextlib.contextmanager
+def load_config_v2():
+    try:
+        c = bc.load_config_v2()
         yield c
     except bc.ConfigurationError as e:
         click.echo(e)
