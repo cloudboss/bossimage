@@ -630,7 +630,7 @@ def validate_v2(doc):
         v.Required('source_ami'): str,
         v.Optional('ami_name', default=default_ami_name): str,
         v.Optional('become', default=True): bool,
-        v.Optional('vars', default={}): dict,
+        v.Optional('extra_vars', default={}): dict,
     })
     platform = base.copy()
     platform.update({
@@ -640,12 +640,12 @@ def validate_v2(doc):
     })
     profile = {
         v.Required('name'): str,
-        v.Optional('vars', default={}): dict
+        v.Optional('extra_vars', default={}): dict
     }
     return v.Schema({
         v.Optional('defaults', default={}): defaults,
         v.Required('platforms'): [platform],
-        v.Optional('profiles', default=[{ 'name': 'default', 'vars': {}}]): [profile],
+        v.Optional('profiles', default=[{ 'name': 'default', 'extra_vars': {}}]): [profile],
     })(doc)
 
 def transform_config(doc):
@@ -663,7 +663,7 @@ def transform_config(doc):
             })
             transformed[instance]['build'].update(platform['build'].copy())
             transformed[instance]['build'].update({
-                'vars':  profile['vars'].copy(),
+                'extra_vars':  profile['extra_vars'].copy(),
                 'platform': platform['name'],
                 'profile': profile['name'],
             })
