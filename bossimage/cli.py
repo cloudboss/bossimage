@@ -117,6 +117,13 @@ def make_image(instance):
         validate_instance(instance, c)
         bc.make_image(instance, c[instance])
 
+@make.command('test')
+@click.argument('instance')
+def make_test(instance):
+    with load_config() as c:
+        validate_instance(instance, c)
+        bc.make_test(instance, c[instance])
+
 @main.group()
 def clean(): pass
 

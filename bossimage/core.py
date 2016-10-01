@@ -352,6 +352,9 @@ def run(instance, config, verbosity):
 def make_build(instance, config, verbosity):
     return run(instance, config, verbosity)
 
+def make_test(instance, config, verbosity):
+    return run(instance, config, verbosity)
+
 def make_image(instance, config):
     files = instance_files(instance)
     with open(files['state']) as f:
