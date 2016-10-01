@@ -567,7 +567,7 @@ def pre_merge_schema():
         }],
     }, extra=v.ALLOW_EXTRA)
 
-def schema_v2(doc):
+def validate_v2(doc):
     base = {
         v.Optional('instance_type'): str,
         v.Optional('username'): str,
@@ -649,7 +649,7 @@ def schema_v2(doc):
     })(doc)
 
 def transform_config(doc):
-    validated = schema_v2(doc)
+    validated = validate_v2(doc)
     transformed = {}
     excluded_items = ('name', 'build', 'test')
     for platform in validated['platforms']:
@@ -657,7 +657,7 @@ def transform_config(doc):
             instance = '{}-{}'.format(platform['name'], profile['name'])
             transformed[instance] = {}
 
-            transformed[instance]['build'] = doc['defaults'].copy()
+            transformed[instance]['build'] = validated['defaults'].copy()
             transformed[instance]['build'].update({
                 k: v for k, v in platform.items() if k not in excluded_items
             })
@@ -668,10 +668,11 @@ def transform_config(doc):
                 'profile': profile['name'],
             })
 
-            transformed[instance]['test'] = doc['defaults'].copy()
+            transformed[instance]['test'] = validated['defaults'].copy()
             transformed[instance]['test'].update({
                 k: v for k, v in platform.items() if k not in excluded_items
             })
+            transformed[instance]['build'].update(platform['test'].copy())
 
             transformed[instance]['platform'] = platform['name']
             transformed[instance]['profile'] = profile['name']
