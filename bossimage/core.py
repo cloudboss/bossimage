@@ -44,6 +44,7 @@ import voluptuous as v
 
 class ConnectionTimeout(Exception): pass
 class ConfigurationError(Exception): pass
+class ItemNotFound(Exception): pass
 
 class Spinner(t.Thread):
     def __init__(self, waitable, state='to be available'):
@@ -440,29 +441,33 @@ def instance_files(instance):
         playbook='.boss/{}-playbook.yml'.format(instance),
     )
 
-def resource_id_for(service, name, prefix, flt):
+def resource_id_for(service, service_desc, name, prefix, flt):
     if name.startswith(prefix): return name
     item = list(service.filter(Filters=[flt]))
-    if item: return item[0].id
+    if item:
+        return item[0].id
+    else:
+        desc = '{} "{}"'.format(service_desc, name)
+        raise ItemNotFound(desc)
 
 def ami_id_for(name):
     ec2 = ec2_connect()
     return resource_id_for(
-        ec2.images, name, 'ami-',
+        ec2.images, 'image', name, 'ami-',
         { 'Name': 'name', 'Values': [name] }
     )
 
 def sg_id_for(name):
     ec2 = ec2_connect()
     return resource_id_for(
-        ec2.security_groups, name, 'sg-',
+        ec2.security_groups, 'security group', name, 'sg-',
         { 'Name': 'group-name', 'Values': [name] }
     )
 
 def subnet_id_for(name):
     ec2 = ec2_connect()
     return resource_id_for(
-        ec2.subnets, name, 'subnet-',
+        ec2.subnets, 'subnet ', name, 'subnet-',
         { 'Name': 'tag:Name', 'Values': [name] }
     )
 
