@@ -58,8 +58,12 @@ def delete(instance):
 
 @main.command('list')
 def lst():
-    with load_config() as c:
-        statuses = bc.statuses(c)
+    try:
+        with load_config() as c:
+            statuses = bc.statuses(c)
+    except:
+        with load_config_v2() as c:
+            statuses = bc.statuses(c)
     longest = sorted(len(status[0]) for status in statuses)[-1]
     for instance, created in statuses:
         status = 'Created' if created else 'Not created'
