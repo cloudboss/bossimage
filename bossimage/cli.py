@@ -113,14 +113,14 @@ def make_build(instance, verbosity):
 @make.command('image')
 @click.argument('instance')
 def make_image(instance):
-    with load_config() as c:
+    with load_config_v2() as c:
         validate_instance(instance, c)
         bc.make_image(instance, c[instance])
 
 @make.command('test')
 @click.argument('instance')
 def make_test(instance):
-    with load_config() as c:
+    with load_config_v2() as c:
         validate_instance(instance, c)
         bc.make_test(instance, c[instance])
 
