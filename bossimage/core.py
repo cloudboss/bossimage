@@ -20,6 +20,7 @@
 from __future__ import print_function
 import base64
 import ConfigParser as cp
+import contextlib
 import functools as f
 import itertools
 import json
@@ -443,6 +444,18 @@ def instance_files(instance):
         inventory='.boss/{}.inventory'.format(instance),
         playbook='.boss/{}-playbook.yml'.format(instance),
     )
+
+@contextlib.contextmanager
+def state(instance):
+    files = instance_files(instance)
+    if not os.path.exists(files['state']): mode = 'w'
+    else: mode = 'r+'
+    with open(files['state'], mode) as f:
+        if mode == 'w': s = {}
+        else: s = yaml.safe_load(f)
+        yield s
+        f.seek(0)
+        f.write(yaml.safe_dump(s))
 
 def resource_id_for(service, service_desc, name, prefix, flt):
     if name.startswith(prefix): return name
