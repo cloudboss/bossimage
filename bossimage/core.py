@@ -501,7 +501,7 @@ def load_config_v2(path='.boss.yml'):
         template = loader.load(j.Environment(), path, os.environ)
         yml = template.render()
         doc = yaml.load(yml)
-        return transform_config(schema_v2(doc))
+        return transform_config(doc)
     except j.TemplateNotFound:
         raise ConfigurationError('Error loading {}: not found'.format(path))
     except j.TemplateSyntaxError as e:
