@@ -195,8 +195,8 @@ def decrypt_password(password_file, keyfile):
     return password
 
 def write_inventory(path, group, ip, keyfile, username, password, port, connection):
-    # ConfigParser is only being used to parse the inventory with its INI style groups.
-    # Unlike most INI files, each item under a group is a single value, not a
+    # ConfigParser is being used to parse the Ansible inventory with its INI style groups.
+    # Unlike most INI files, each item under an inventory group is a single value, not a
     # key/value pair. Setting `allow_no_value` to `True` allows the ConfigParser object
     # to write an entry without adding a value to it.
     inventory = cp.ConfigParser(allow_no_value=True)
