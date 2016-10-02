@@ -45,6 +45,7 @@ import voluptuous as v
 
 class ConnectionTimeout(Exception): pass
 class ConfigurationError(Exception): pass
+class StateError(Exception): pass
 class ItemNotFound(Exception): pass
 
 class Spinner(t.Thread):
@@ -354,51 +355,62 @@ def make_build(instance, config, verbosity):
     return run(instance, config, verbosity)
 
 def make_test(instance, config, verbosity):
+    with load_state(instance) as state:
+        if 'image' not in state:
+            raise StateError('`make test` cannot be run before `make image`')
     return run(instance, config, verbosity)
 
 def make_image(instance, config):
-    files = instance_files(instance)
-    with open(files['state']) as f:
-        state = yaml.load(f)
+    with load_state(instance) as state:
+        if 'build' not in state:
+            raise StateError('`make image` cannot be run before `make build`')
+        ec2 = ec2_connect()
+        ec2_instance = ec2.Instance(id=state['build']['id'])
+        ec2_instance.load()
 
-    ec2 = ec2_connect()
-    ec2_instance = ec2.Instance(id=state['build']['id'])
-    ec2_instance.load()
+        config.update({
+            'role': role_name(),
+            'version': role_version(),
+            'arch': ec2_instance.architecture,
+            'hv': ec2_instance.hypervisor,
+            'vtype': ec2_instance.virtualization_type,
+        })
 
-    config.update({
-        'role': role_name(),
-        'version': role_version(),
-        'arch': ec2_instance.architecture,
-        'hv': ec2_instance.hypervisor,
-        'vtype': ec2_instance.virtualization_type,
-    })
+        image_name = config['build']['ami_name'] % config
+        image = ec2_instance.create_image(Name=image_name)
+        print('Created image {} with name {}'.format(image.id, image_name))
 
-    image_name = config['ami_name'] % config
-    image = ec2_instance.create_image(Name=image_name)
-    print('Created image {} with name {}'.format(image.id, image_name))
-
-    wait_for_image(image)
-
-    state['ami_id'] = image.id
-    with open(files['state'], 'w') as f:
-        f.write(yaml.safe_dump(state))
+        wait_for_image(image)
+        state['image'] = {'ami_id': image.id}
 
 def clean_build(instance):
-    files = instance_files(instance)
+    with load_state(instance) as state:
+        if 'build' not in state:
+            print('No such instance {}'.format(instance))
+            return
 
-    with open(files['state']) as f:
-        state = yaml.load(f)
+        ec2 = ec2_connect()
 
-    ec2 = ec2_connect()
+        ec2_instance = ec2.Instance(id=state['build']['id'])
+        ec2_instance.terminate()
+        print('Deleted instance {}'.format(ec2_instance.id))
+        del(state['build'])
 
-    ec2_instance = ec2.Instance(id=state['build']['id'])
-    ec2_instance.terminate()
-    print('Deleted instance {}'.format(ec2_instance.id))
+        possibly_delete_keypair(ec2, state)
+        possibly_delete_files(instance, state)
 
+def possibly_delete_keypair(ec2, state):
+    if 'build' in state or 'test' in state:
+        return
     kp = ec2.KeyPair(name=state['keyname'])
     kp.delete()
     print('Deleted keypair {}'.format(kp.name))
+    del(state['keynmame'])
 
+def possibly_delete_files(instance, state):
+    if 'build' in state or 'image' in state or 'test' in state:
+        return
+    files = instance_files(instance)
     for f in files.values():
         try:
             os.unlink(f)
@@ -406,19 +418,17 @@ def clean_build(instance):
             print('Error removing {}, skipping'.format(f))
 
 def clean_image(instance):
-    files = instance_files(instance)
-    with open(files['state']) as f:
-        state = yaml.load(f)
+    with load_state(instance) as state:
+        if 'image' not in state:
+            print('no image found for {}'.format(instance))
+            return
+        print('Deregistering image {}'.format(state['image']['ami_id']))
 
-    print('Deregistering image {}'.format(state['ami_id']))
+        (image,) = ec2_connect().images.filter(ImageIds=[state['image']['ami_id']])
+        image.load()
+        image.deregister()
 
-    (image,) = ec2_connect().images.filter(ImageIds=[state['ami_id']])
-    image.load()
-    image.deregister()
-
-    del(state['ami_id'])
-    with open(files['state'], 'w') as f:
-        f.write(yaml.safe_dump(state))
+        del(state['image'])
 
 def statuses(config):
     def exists(instance):
@@ -446,16 +456,16 @@ def instance_files(instance):
     )
 
 @contextlib.contextmanager
-def state(instance):
+def load_state(instance):
     files = instance_files(instance)
-    if not os.path.exists(files['state']): mode = 'w'
-    else: mode = 'r+'
-    with open(files['state'], mode) as f:
-        if mode == 'w': s = {}
-        else: s = yaml.safe_load(f)
-        yield s
-        f.seek(0)
-        f.write(yaml.safe_dump(s))
+    if not os.path.exists(files['state']):
+        state = dict()
+    else:
+        with open(files['state']) as f:
+            state = yaml.safe_load(f)
+    yield state
+    with open(files['state'], 'w') as f:
+        f.write(yaml.safe_dump(state))
 
 def resource_id_for(service, service_desc, name, prefix, flt):
     if name.startswith(prefix): return name
