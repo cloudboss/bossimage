@@ -119,10 +119,12 @@ def make_image(instance):
 
 @make.command('test')
 @click.argument('instance')
-def make_test(instance):
+@click.option('-v', '--verbosity', count=True,
+              help='Verbosity, may be repeated up to 4 times')
+def make_test(instance, verbosity):
     with load_config_v2() as c:
         validate_instance(instance, c)
-        bc.make_test(instance, c[instance])
+        bc.make_test(instance, c[instance]['test'], verbosity)
 
 @main.group()
 def clean(): pass
@@ -131,6 +133,11 @@ def clean(): pass
 @click.argument('instance')
 def clean_build(instance):
     bc.clean_build(instance)
+
+@clean.command('test')
+@click.argument('instance')
+def clean_build(instance):
+    bc.clean_test(instance)
 
 @clean.command('image')
 @click.argument('instance')

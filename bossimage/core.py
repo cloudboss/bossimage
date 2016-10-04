@@ -140,11 +140,13 @@ def tag_instance(tags, instance):
     )
     print('Tagged instance with {}'.format(tags))
 
-def create_instance(config, files, keyname):
-    create_keypair(keyname, files['keyfile'])
-
+def create_instance(config, files, keyname, state=None):
+    if state and 'image' in state:
+        ami_id = state['image']['ami_id']
+    else:
+        ami_id = ami_id_for(config['source_ami'])
     instance_params = dict(
-        ImageId=ami_id_for(config['source_ami']),
+        ImageId=ami_id,
         InstanceType=config['instance_type'],
         MinCount=1,
         MaxCount=1,
@@ -195,6 +197,58 @@ def decrypt_password(password_file, keyfile):
     password, _ = openssl.communicate()
     return password
 
+def parse_inventory(path):
+    inventory = {}
+    section = None
+    with open(path) as f:
+        for line in f.readlines():
+            whitespace_match = re.match('^\s*$', line)
+            if whitespace_match:
+                continue
+
+            section_match = re.match('\[(?P<section>\w+)\]\s*', line)
+            if section_match:
+                section = section_match.groupdict()['section']
+                inventory[section] = []
+                continue
+
+            inventory[section].append(line.strip())
+    return inventory
+
+def inventory_entry(group, ip, keyfile, username, password, port, connection):
+    return {
+        group: [
+            '{} ' \
+            'ansible_ssh_private_key_file={} ' \
+            'ansible_user={} ' \
+            'ansible_password={} ' \
+            'ansible_port={} ' \
+            'ansible_connection={}'.format(
+                ip, keyfile, username, password, port, connection
+            )
+        ]
+    }
+
+def add_to_inventory(path, group, ip, keyfile, username, password, port, connection):
+    if os.path.exists(path):
+        inventory = parse_inventory(path)
+    else:
+        inventory = dict()
+    entry = inventory_entry(group, ip, keyfile, username, password, port, connection)
+    inventory.update(entry)
+    write_inventory_file(path, inventory)
+
+def remove_from_inventory(path, group):
+    inventory = parse_inventory(path)
+    del(inventory[group])
+    write_inventory_file(path, inventory)
+
+def write_inventory_file(path, inventory):
+    inventory_string = '\n'.join(['[{}]\n{}'.format(grp, '\n'.join(hosts)) for grp, hosts in inventory.items()])
+    with open(path, 'w') as f:
+        f.write(inventory_string)
+    os.chmod(path, 0600)
+
 def write_inventory(path, group, ip, keyfile, username, password, port, connection):
     # ConfigParser is being used to parse the Ansible inventory with its INI style groups.
     # Unlike most INI files, each item under an inventory group is a single value, not a
@@ -208,7 +262,7 @@ def write_inventory(path, group, ip, keyfile, username, password, port, connecti
 
     if os.path.exists(path):
         with open(path) as f:
-            inventory.read(f)
+            inventory.readfp(f)
 
     entry = '{} ' \
             'ansible_ssh_private_key_file={} ' \
@@ -226,6 +280,14 @@ def write_inventory(path, group, ip, keyfile, username, password, port, connecti
         inventory.write(f)
 
     os.chmod(path, 0600)
+
+def write_playbook(playbook, phase, config):
+    with open(playbook, 'w') as f:
+        f.write(yaml.safe_dump([dict(
+            hosts=phase,
+            become=config['become'],
+            roles=[role_name()],
+        )]))
 
 def write_files(files, ec2_instance, keyname, config, password):
     if config['associate_public_ip_address']:
@@ -247,12 +309,47 @@ def write_files(files, ec2_instance, keyname, config, password):
         config['username'], password, config['port'], config['connection']
     )
 
-    with open(files['playbook'], 'w') as f:
-        f.write(yaml.safe_dump([dict(
-            hosts='build',
-            become=config['become'],
-            roles=[role_name()],
-        )]))
+    write_playbook(files['playbook'], 'build', config)
+
+def get_windows_password(ec2_instance, keyfile):
+    with Spinner('password'):
+        encrypted_password = wait_for_password(ec2_instance)
+    password_file = tempfile.mktemp(dir='.boss')
+    with open(password_file, 'w') as f:
+        f.write(base64.decodestring(encrypted_password))
+        password = decrypt_password(password_file, keyfile)
+        os.unlink(password_file)
+    return password
+
+def possibly_create_instance(instance, phase, config, state):
+    if phase in state: return
+
+    files = instance_files(instance)
+    keyfile = files['keyfile']
+
+    if phase == 'build':
+        keyname = gen_keyname()
+        create_keypair(keyname, keyfile)
+        state['keyname'] = keyname
+
+    source_ami = state['image']['ami_id'] if phase == 'test' else None
+    ec2_instance = create_instance(config, files, state['keyname'], state)
+    public_ip = config['associate_public_ip_address']
+    ip_address = ec2_instance.public_ip_address if public_ip else ec2_instance.private_ip_address
+    state[phase] = {
+        'id': ec2_instance.id,
+        'ip': ip_address,
+    }
+
+    connection = config['connection']
+    password = get_windows_password(ec2_instance, keyfile) if connection == 'winrm' else None
+    add_to_inventory(
+        files['inventory'], phase, ip_address, keyfile,
+        config['username'], password, config['port'], connection
+    )
+
+    if phase == 'build':
+        write_playbook(files['playbook'], 'build', config)
 
 def load_or_create_instance(config):
     instance = '{}-{}'.format(config['platform'], config['profile'])
@@ -260,6 +357,8 @@ def load_or_create_instance(config):
 
     if not os.path.exists(files['state']):
         keyname = gen_keyname()
+
+        create_keypair(keyname, files['keyfile'])
         ec2_instance = create_instance(config, files, keyname)
 
         if config['connection'] == 'winrm':
@@ -287,14 +386,13 @@ def wait_for_image(image):
                 time.sleep(15)
 
 def wait_for_password(ec2_instance):
-    with Spinner('password'):
-        while True:
-            ec2_instance.reload()
-            pd = ec2_instance.password_data()
-            if pd['PasswordData']:
-                return pd['PasswordData']
-            else:
-                time.sleep(15)
+    while True:
+        ec2_instance.reload()
+        pd = ec2_instance.password_data()
+        if pd['PasswordData']:
+            return pd['PasswordData']
+        else:
+            time.sleep(15)
 
 def wait_for_connection(addr, port, inventory, group, connection, end):
     env = os.environ.copy()
@@ -352,18 +450,73 @@ def run(instance, config, verbosity):
     return ansible_playbook.wait()
 
 def make_build(instance, config, verbosity):
-    return run(instance, config, verbosity)
+    create_working_dir()
+
+    with load_state(instance) as state:
+        possibly_create_instance(instance, 'build', config, state)
+
+        files = instance_files(instance)
+
+        ip = state['build']['ip']
+        port = config['port']
+        end = time.time() + config['connection_timeout']
+        with Spinner('connection to {}:{}'.format(ip, port)):
+            wait_for_connection(ip, port, files['inventory'], 'build', config['connection'], end)
+
+        env = os.environ.copy()
+        env.update(dict(ANSIBLE_ROLES_PATH='.boss/roles:..'))
+
+        ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', 'requirements.yml']
+        if verbosity:
+            ansible_galaxy_args.append('-' + 'v' * verbosity)
+        ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
+        ansible_galaxy.wait()
+
+        env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
+
+        ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
+        if verbosity:
+            ansible_playbook_args.append('-' + 'v' * verbosity)
+        if config['extra_vars']:
+            ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
+        ansible_playbook_args.append(files['playbook'])
+        ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
+        return ansible_playbook.wait()
 
 def make_test(instance, config, verbosity):
     with load_state(instance) as state:
-        if 'image' not in state:
-            raise StateError('`make test` cannot be run before `make image`')
-    return run(instance, config, verbosity)
+        if 'test' not in state and 'image' not in state:
+            raise StateError('Cannot run `make test` before `make image`')
+
+        possibly_create_instance(instance, 'test', config, state)
+
+        files = instance_files(instance)
+
+        ip = state['test']['ip']
+        port = config['port']
+        end = time.time() + config['connection_timeout']
+        with Spinner('connection to {}:{}'.format(ip, port)):
+            wait_for_connection(ip, port, files['inventory'], 'test', config['connection'], end)
+
+        env = os.environ.copy()
+        env.update(dict(
+            ANSIBLE_ROLES_PATH='.boss/roles:..',
+            ANSIBLE_HOST_KEY_CHECKING='False',
+        ))
+
+        ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
+        if verbosity:
+            ansible_playbook_args.append('-' + 'v' * verbosity)
+        if 'extra_vars' in config and config['extra_vars']:
+            ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
+        ansible_playbook_args.append('tests/test.yml')
+        ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
+        return ansible_playbook.wait()
 
 def make_image(instance, config):
     with load_state(instance) as state:
         if 'build' not in state:
-            raise StateError('`make image` cannot be run before `make build`')
+            raise StateError('Cannot run `make image` before `make build`')
         ec2 = ec2_connect()
         ec2_instance = ec2.Instance(id=state['build']['id'])
         ec2_instance.load()
@@ -384,51 +537,61 @@ def make_image(instance, config):
         state['image'] = {'ami_id': image.id}
 
 def clean_build(instance):
+    clean_instance(instance, 'build')
+
+def clean_test(instance):
+    clean_instance(instance, 'test')
+
+def clean_instance(instance, phase):
     with load_state(instance) as state:
-        if 'build' not in state:
-            print('No such instance {}'.format(instance))
+        if phase not in state:
+            print('No {} instance found for {}'.format(phase, instance))
             return
 
-        ec2 = ec2_connect()
-
-        ec2_instance = ec2.Instance(id=state['build']['id'])
+        ec2_instance = ec2_connect().Instance(id=state[phase]['id'])
         ec2_instance.terminate()
         print('Deleted instance {}'.format(ec2_instance.id))
-        del(state['build'])
+        del(state[phase])
 
-        possibly_delete_keypair(ec2, state)
-        possibly_delete_files(instance, state)
+        files = instance_files(instance)
+        remove_from_inventory(files['inventory'], phase)
 
-def possibly_delete_keypair(ec2, state):
-    if 'build' in state or 'test' in state:
-        return
-    kp = ec2.KeyPair(name=state['keyname'])
+        if 'build' not in state and 'test' not in state:
+            delete_keypair(state)
+
+        should_delete_files = 'build' not in state and 'image' not in state and 'test' not in state
+
+    if should_delete_files:
+        delete_files(files)
+
+def clean_image(instance):
+    with load_state(instance) as state:
+        if 'image' not in state:
+            print('No image found for {}'.format(instance))
+            return
+
+        (image,) = ec2_connect().images.filter(ImageIds=[state['image']['ami_id']])
+        image.deregister()
+        print('Deregistered image {}'.format(state['image']['ami_id']))
+        del(state['image'])
+
+        should_delete_files = 'build' not in state and 'test' not in state
+
+    if should_delete_files:
+        delete_files(instance_files(instance))
+
+def delete_keypair(state):
+    kp = ec2_connect().KeyPair(name=state['keyname'])
     kp.delete()
     print('Deleted keypair {}'.format(kp.name))
-    del(state['keynmame'])
+    del(state['keyname'])
 
-def possibly_delete_files(instance, state):
-    if 'build' in state or 'image' in state or 'test' in state:
-        return
-    files = instance_files(instance)
+def delete_files(files):
     for f in files.values():
         try:
             os.unlink(f)
         except OSError:
             print('Error removing {}, skipping'.format(f))
-
-def clean_image(instance):
-    with load_state(instance) as state:
-        if 'image' not in state:
-            print('no image found for {}'.format(instance))
-            return
-        print('Deregistering image {}'.format(state['image']['ami_id']))
-
-        (image,) = ec2_connect().images.filter(ImageIds=[state['image']['ami_id']])
-        image.load()
-        image.deregister()
-
-        del(state['image'])
 
 def statuses(config):
     def exists(instance):
