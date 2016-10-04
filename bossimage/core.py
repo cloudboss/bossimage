@@ -43,10 +43,18 @@ import jinja2 as j
 import pkg_resources as pr
 import voluptuous as v
 
+
 class ConnectionTimeout(Exception): pass
+
+
 class ConfigurationError(Exception): pass
+
+
 class StateError(Exception): pass
+
+
 class ItemNotFound(Exception): pass
+
 
 class Spinner(t.Thread):
     def __init__(self, waitable, state='to be available'):
@@ -85,13 +93,16 @@ def cached(func):
         return cache[key]
     return wrapper
 
+
 @cached
 def ec2_connect():
     session = boto.Session()
     return session.resource('ec2')
 
+
 def snake_to_camel(s):
     return ''.join(part[0].capitalize() + part[1:] for part in s.split('_'))
+
 
 def camelify(spec):
     if type(spec) == list:
@@ -101,15 +112,19 @@ def camelify(spec):
     else:
         return spec
 
+
 def random_string(length=10):
     letters = string.ascii_letters + string.digits
     return ''.join(letters[random.randrange(0, len(letters))] for _ in range(length))
 
+
 def gen_keyname():
     return 'bossimage-' + random_string()
 
+
 def create_working_dir():
     if not os.path.exists('.boss'): os.mkdir('.boss')
+
 
 def user_data(config):
     if type(config['user_data']) == dict:
@@ -122,6 +137,7 @@ def user_data(config):
         ud = config['user_data']
     return ud
 
+
 def create_keypair(keyname, keyfile):
     kp = ec2_connect().create_key_pair(KeyName=keyname)
     print('Created keypair {}'.format(keyname))
@@ -129,6 +145,7 @@ def create_keypair(keyname, keyfile):
     with open(keyfile, 'w') as f:
         f.write(kp.key_material)
     os.chmod(keyfile, 0600)
+
 
 def tag_instance(tags, instance):
     with Spinner('instance', 'to exist'):
@@ -139,6 +156,7 @@ def tag_instance(tags, instance):
         Tags=[{'Key': k, 'Value': v} for k, v in tags.items()]
     )
     print('Tagged instance with {}'.format(tags))
+
 
 def create_instance(config, files, keyname, state=None):
     if state and 'image' in state:
@@ -177,8 +195,10 @@ def create_instance(config, files, keyname, state=None):
     instance.reload()
     return instance
 
+
 def role_name():
     return os.path.basename(os.getcwd())
+
 
 def role_version():
     if os.path.exists('.role-version'):
@@ -188,6 +208,7 @@ def role_version():
         version = 'unset'
     return version
 
+
 def decrypt_password(password_file, keyfile):
     openssl = subprocess.Popen([
         'openssl', 'rsautl', '-decrypt',
@@ -196,6 +217,7 @@ def decrypt_password(password_file, keyfile):
     ], stdout=subprocess.PIPE)
     password, _ = openssl.communicate()
     return password
+
 
 def parse_inventory(path):
     inventory = {}
@@ -215,6 +237,7 @@ def parse_inventory(path):
             inventory[section].append(line.strip())
     return inventory
 
+
 def inventory_entry(group, ip, keyfile, username, password, port, connection):
     return {
         group: [
@@ -229,6 +252,7 @@ def inventory_entry(group, ip, keyfile, username, password, port, connection):
         ]
     }
 
+
 def add_to_inventory(path, group, ip, keyfile, username, password, port, connection):
     if os.path.exists(path):
         inventory = parse_inventory(path)
@@ -238,16 +262,19 @@ def add_to_inventory(path, group, ip, keyfile, username, password, port, connect
     inventory.update(entry)
     write_inventory_file(path, inventory)
 
+
 def remove_from_inventory(path, group):
     inventory = parse_inventory(path)
     del(inventory[group])
     write_inventory_file(path, inventory)
+
 
 def write_inventory_file(path, inventory):
     inventory_string = '\n'.join(['[{}]\n{}'.format(grp, '\n'.join(hosts)) for grp, hosts in inventory.items()])
     with open(path, 'w') as f:
         f.write(inventory_string)
     os.chmod(path, 0600)
+
 
 def write_inventory(path, group, ip, keyfile, username, password, port, connection):
     # ConfigParser is being used to parse the Ansible inventory with its INI style groups.
@@ -281,6 +308,7 @@ def write_inventory(path, group, ip, keyfile, username, password, port, connecti
 
     os.chmod(path, 0600)
 
+
 def write_playbook(playbook, phase, config):
     with open(playbook, 'w') as f:
         f.write(yaml.safe_dump([dict(
@@ -288,6 +316,7 @@ def write_playbook(playbook, phase, config):
             become=config['become'],
             roles=[role_name()],
         )]))
+
 
 def write_files(files, ec2_instance, keyname, config, password):
     if config['associate_public_ip_address']:
@@ -311,6 +340,7 @@ def write_files(files, ec2_instance, keyname, config, password):
 
     write_playbook(files['playbook'], 'build', config)
 
+
 def get_windows_password(ec2_instance, keyfile):
     with Spinner('password'):
         encrypted_password = wait_for_password(ec2_instance)
@@ -320,6 +350,7 @@ def get_windows_password(ec2_instance, keyfile):
         password = decrypt_password(password_file, keyfile)
         os.unlink(password_file)
     return password
+
 
 def possibly_create_instance(instance, phase, config, state):
     if phase in state: return
@@ -351,6 +382,7 @@ def possibly_create_instance(instance, phase, config, state):
     if phase == 'build':
         write_playbook(files['playbook'], 'build', config)
 
+
 def load_or_create_instance(config):
     instance = '{}-{}'.format(config['platform'], config['profile'])
     files = instance_files(instance)
@@ -376,6 +408,7 @@ def load_or_create_instance(config):
     with open(files['state']) as f:
         return yaml.load(f)
 
+
 def wait_for_image(image):
     with Spinner('image'):
         while(True):
@@ -385,6 +418,7 @@ def wait_for_image(image):
             else:
                 time.sleep(15)
 
+
 def wait_for_password(ec2_instance):
     while True:
         ec2_instance.reload()
@@ -393,6 +427,7 @@ def wait_for_password(ec2_instance):
             return pd['PasswordData']
         else:
             time.sleep(15)
+
 
 def wait_for_connection(addr, port, inventory, group, connection, end):
     env = os.environ.copy()
@@ -415,6 +450,7 @@ def wait_for_connection(addr, port, inventory, group, connection, end):
                 else: raise
         except:
             time.sleep(15)
+
 
 def run(instance, config, verbosity):
     create_working_dir()
@@ -448,6 +484,7 @@ def run(instance, config, verbosity):
     ansible_playbook_args.append(files['playbook'])
     ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
     return ansible_playbook.wait()
+
 
 def make_build(instance, config, verbosity):
     create_working_dir()
@@ -483,6 +520,7 @@ def make_build(instance, config, verbosity):
         ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
         return ansible_playbook.wait()
 
+
 def make_test(instance, config, verbosity):
     with load_state(instance) as state:
         if 'test' not in state and 'image' not in state:
@@ -513,6 +551,7 @@ def make_test(instance, config, verbosity):
         ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
         return ansible_playbook.wait()
 
+
 def make_image(instance, config):
     with load_state(instance) as state:
         if 'build' not in state:
@@ -536,11 +575,14 @@ def make_image(instance, config):
         wait_for_image(image)
         state['image'] = {'ami_id': image.id}
 
+
 def clean_build(instance):
     clean_instance(instance, 'build')
 
+
 def clean_test(instance):
     clean_instance(instance, 'test')
+
 
 def clean_instance(instance, phase):
     with load_state(instance) as state:
@@ -564,6 +606,7 @@ def clean_instance(instance, phase):
     if should_delete_files:
         delete_files(files)
 
+
 def clean_image(instance):
     with load_state(instance) as state:
         if 'image' not in state:
@@ -580,11 +623,13 @@ def clean_image(instance):
     if should_delete_files:
         delete_files(instance_files(instance))
 
+
 def delete_keypair(state):
     kp = ec2_connect().KeyPair(name=state['keyname'])
     kp.delete()
     print('Deleted keypair {}'.format(kp.name))
     del(state['keyname'])
+
 
 def delete_files(files):
     for f in files.values():
@@ -593,10 +638,12 @@ def delete_files(files):
         except OSError:
             print('Error removing {}, skipping'.format(f))
 
+
 def statuses(config):
     def exists(instance):
         return os.path.exists('.boss/{}.yml'.format(instance))
     return [(instance, exists(instance)) for instance in config.keys()]
+
 
 def login(instance, config):
     files = instance_files(instance)
@@ -610,6 +657,7 @@ def login(instance, config):
     ])
     ssh.wait()
 
+
 def instance_files(instance):
     return dict(
         state='.boss/{}-state.yml'.format(instance),
@@ -617,6 +665,7 @@ def instance_files(instance):
         inventory='.boss/{}.inventory'.format(instance),
         playbook='.boss/{}-playbook.yml'.format(instance),
     )
+
 
 @contextlib.contextmanager
 def load_state(instance):
@@ -630,6 +679,7 @@ def load_state(instance):
     with open(files['state'], 'w') as f:
         f.write(yaml.safe_dump(state))
 
+
 def resource_id_for(service, service_desc, name, prefix, flt):
     if name.startswith(prefix): return name
     item = list(service.filter(Filters=[flt]))
@@ -639,12 +689,14 @@ def resource_id_for(service, service_desc, name, prefix, flt):
         desc = '{} "{}"'.format(service_desc, name)
         raise ItemNotFound(desc)
 
+
 def ami_id_for(name):
     ec2 = ec2_connect()
     return resource_id_for(
         ec2.images, 'image', name, 'ami-',
         { 'Name': 'name', 'Values': [name] }
     )
+
 
 def sg_id_for(name):
     ec2 = ec2_connect()
@@ -653,12 +705,14 @@ def sg_id_for(name):
         { 'Name': 'group-name', 'Values': [name] }
     )
 
+
 def subnet_id_for(name):
     ec2 = ec2_connect()
     return resource_id_for(
         ec2.subnets, 'subnet ', name, 'subnet-',
         { 'Name': 'tag:Name', 'Values': [name] }
     )
+
 
 def load_config(path='.boss.yml'):
     loader = j.FileSystemLoader('.')
@@ -684,6 +738,7 @@ def load_config(path='.boss.yml'):
     except v.Invalid as e:
         raise ConfigurationError('Error validating {}: {}'.format(path, e))
 
+
 def load_config_v2(path='.boss.yml'):
     loader = j.FileSystemLoader('.')
     try:
@@ -699,6 +754,7 @@ def load_config_v2(path='.boss.yml'):
         raise ConfigurationError('Error loading {}: {}'.format(path, e.strerror))
     except v.Invalid as e:
         raise ConfigurationError('Error validating {}: {}'.format(path, e))
+
 
 def merge_config(c):
     merged = {}
@@ -718,28 +774,36 @@ def merge_config(c):
             merged[instance]['profile'] = profile['name']
     return merged
 
+
 def invalid(kind, item):
     return v.Invalid('Invalid {}: {}'.format(kind, item))
+
 
 def re_validator(pat, s, kind):
     if not re.match(pat, s): raise invalid(kind, s)
     return s
 
+
 def coll_validator(coll, kind, thing):
     if thing not in coll: raise invalid(kind, thing)
     return thing
 
+
 def is_subnet_id(s):
     return re_validator(r'subnet-[0-9a-f]{8}', s, 'subnet_id')
+
 
 def is_snapshot_id(s):
     return re_validator(r'snap-[0-9a-f]{8}', s, 'snapshot_id')
 
+
 def is_virtual_name(s):
     return re_validator(r'ephemeral\d+', s, 'virtual_name')
 
+
 def is_volume_type(s):
     return coll_validator(('gp2', 'io1', 'standard'), 'volume_type', s)
+
 
 def pre_merge_schema():
     default_profiles = [{
@@ -755,6 +819,7 @@ def pre_merge_schema():
             v.Required('name'): str,
         }],
     }, extra=v.ALLOW_EXTRA)
+
 
 def validate_v2(doc):
     base = {
@@ -837,6 +902,7 @@ def validate_v2(doc):
         v.Optional('profiles', default=[{ 'name': 'default', 'extra_vars': {}}]): [profile],
     })(doc)
 
+
 def transform_config(doc):
     validated = validate_v2(doc)
     transformed = {}
@@ -866,6 +932,7 @@ def transform_config(doc):
             transformed[instance]['platform'] = platform['name']
             transformed[instance]['profile'] = profile['name']
     return transformed
+
 
 def post_merge_schema():
     default_ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
