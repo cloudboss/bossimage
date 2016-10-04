@@ -19,7 +19,6 @@
 # THE SOFTWARE.
 from __future__ import print_function
 import base64
-import ConfigParser as cp
 import contextlib
 import functools as f
 import itertools
@@ -276,39 +275,6 @@ def write_inventory_file(path, inventory):
     os.chmod(path, 0600)
 
 
-def write_inventory(path, group, ip, keyfile, username, password, port, connection):
-    # ConfigParser is being used to parse the Ansible inventory with its INI style groups.
-    # Unlike most INI files, each item under an inventory group is a single value, not a
-    # key/value pair. Setting `allow_no_value` to `True` allows the ConfigParser object
-    # to write an entry without adding a value to it.
-    inventory = cp.ConfigParser(allow_no_value=True)
-
-    # To prevent entry getting downcased.
-    # https://docs.python.org/2/library/configparser.html#ConfigParser.RawConfigParser.optionxform
-    inventory.optionxform = str
-
-    if os.path.exists(path):
-        with open(path) as f:
-            inventory.readfp(f)
-
-    entry = '{} ' \
-            'ansible_ssh_private_key_file={} ' \
-            'ansible_user={} ' \
-            'ansible_password={} ' \
-            'ansible_port={} ' \
-            'ansible_connection={}'.format(
-                ip, keyfile, username, password, port, connection
-            )
-
-    inventory.add_section(group)
-    inventory.set(group, entry)
-
-    with open(path, 'w') as f:
-        inventory.write(f)
-
-    os.chmod(path, 0600)
-
-
 def write_playbook(playbook, phase, config):
     with open(playbook, 'w') as f:
         f.write(yaml.safe_dump([dict(
@@ -333,7 +299,7 @@ def write_files(files, ec2_instance, keyname, config, password):
             )
         )))
 
-    write_inventory(
+    add_to_inventory(
         files['inventory'], 'build', ip_address, files['keyfile'],
         config['username'], password, config['port'], config['connection']
     )
