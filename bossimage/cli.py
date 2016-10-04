@@ -115,7 +115,11 @@ def make_build(instance, verbosity):
 def make_image(instance):
     with load_config_v2() as c:
         validate_instance(instance, c)
-        bc.make_image(instance, c[instance])
+        try:
+            bc.make_image(instance, c[instance])
+        except bc.StateError as e:
+            click.echo(e)
+            raise click.Abort()
 
 @make.command('test')
 @click.argument('instance')
@@ -124,7 +128,11 @@ def make_image(instance):
 def make_test(instance, verbosity):
     with load_config_v2() as c:
         validate_instance(instance, c)
-        bc.make_test(instance, c[instance]['test'], verbosity)
+        try:
+            bc.make_test(instance, c[instance]['test'], verbosity)
+        except bc.StateError as e:
+            click.echo(e)
+            raise click.Abort()
 
 @main.group()
 def clean(): pass
