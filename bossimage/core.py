@@ -514,7 +514,7 @@ def make_test(instance, config, verbosity):
             ansible_playbook_args.append('-' + 'v' * verbosity)
         if 'extra_vars' in config and config['extra_vars']:
             ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
-        ansible_playbook_args.append('tests/test.yml')
+        ansible_playbook_args.append(config['playbook'])
         ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
         return ansible_playbook.wait()
 
@@ -853,11 +853,15 @@ def validate_v2(doc):
         v.Optional('become', default=True): bool,
         v.Optional('extra_vars', default={}): dict,
     })
+    test = base.copy()
+    test.update({
+        v.Optional('playbook', default='tests/test.yml'): str
+    })
     platform = base.copy()
     platform.update({
         v.Required('name'): str,
         v.Required('build'): build,
-        v.Optional('test', default={}): base.copy(),
+        v.Optional('test', default={'playbook': 'tests/test.yml'}): test,
     })
     profile = {
         v.Required('name'): str,
@@ -866,7 +870,7 @@ def validate_v2(doc):
     return v.Schema({
         v.Optional('defaults', default={}): defaults,
         v.Required('platforms'): [platform],
-        v.Optional('profiles', default=[{ 'name': 'default', 'extra_vars': {}}]): [profile],
+        v.Optional('profiles', default=[{'name': 'default', 'extra_vars': {}}]): [profile],
     })(doc)
 
 
