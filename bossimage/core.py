@@ -114,7 +114,8 @@ def camelify(spec):
 
 def random_string(length=10):
     letters = string.ascii_letters + string.digits
-    return ''.join(letters[random.randrange(0, len(letters))] for _ in range(length))
+    end = len(letters)
+    return ''.join(letters[random.randrange(0, end)] for _ in range(length))
 
 
 def gen_keyname():
