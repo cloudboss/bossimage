@@ -148,9 +148,6 @@ def create_keypair(keyname, keyfile):
 
 
 def tag_instance(tags, instance):
-    with Spinner('instance', 'to exist'):
-        instance.wait_until_exists()
-
     ec2_connect().create_tags(
         Resources=[instance.id],
         Tags=[{'Key': k, 'Value': v} for k, v in tags.items()]
@@ -186,11 +183,11 @@ def create_instance(config, files, keyname, state=None):
     (instance,) = ec2_connect().create_instances(**instance_params)
     print('Created instance {}'.format(instance.id))
 
-    if config['tags']:
-        tag_instance(config['tags'], instance)
-
     with Spinner('instance', 'to be running'):
         instance.wait_until_running()
+
+    if config['tags']:
+        tag_instance(config['tags'], instance)
 
     instance.reload()
     return instance
