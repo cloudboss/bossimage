@@ -29,8 +29,10 @@ import yaml
 import bossimage as b
 import bossimage.core as bc
 
+
 @click.group()
 def main(): pass
+
 
 @main.command()
 @click.argument('instance')
@@ -42,6 +44,7 @@ def run(instance, verbosity):
         validate_instance(instance, c)
         sys.exit(bc.run(instance, c[instance], verbosity))
 
+
 @main.command()
 @click.argument('instance')
 def image(instance):
@@ -50,11 +53,13 @@ def image(instance):
         validate_instance(instance, c)
         bc.make_image(instance, c[instance])
 
+
 @main.command()
 @click.argument('instance')
 def delete(instance):
     click.echo('Warning: the `delete` command is being deprecated, please use `clean build` instead')
     bc.clean_build(instance)
+
 
 @main.command('list')
 def lst():
@@ -69,6 +74,7 @@ def lst():
         status = 'Created' if created else 'Not created'
         click.echo('{:{width}}{}'.format(instance, status, width=longest+4))
 
+
 @main.command()
 @click.argument('instance')
 def login(instance):
@@ -78,6 +84,7 @@ def login(instance):
             click.echo('Login unsupported for winrm connections')
             raise click.Abort()
         bc.login(instance, c[instance])
+
 
 @main.command()
 @click.option('-a', '--attribute')
@@ -94,12 +101,15 @@ def info(attribute, instance):
             else:
                 click.echo(c[instance][attribute])
 
+
 @main.command()
 def version():
     click.echo(b.__version__)
 
+
 @main.group()
 def make(): pass
+
 
 @make.command('build')
 @click.argument('instance')
@@ -109,6 +119,7 @@ def make_build(instance, verbosity):
     with load_config_v2() as c:
         validate_instance(instance, c)
         sys.exit(bc.make_build(instance, c[instance]['build'], verbosity))
+
 
 @make.command('image')
 @click.argument('instance')
@@ -120,6 +131,7 @@ def make_image(instance):
         except bc.StateError as e:
             click.echo(e)
             raise click.Abort()
+
 
 @make.command('test')
 @click.argument('instance')
@@ -134,28 +146,34 @@ def make_test(instance, verbosity):
             click.echo(e)
             raise click.Abort()
 
+
 @main.group()
 def clean(): pass
+
 
 @clean.command('build')
 @click.argument('instance')
 def clean_build(instance):
     bc.clean_build(instance)
 
+
 @clean.command('test')
 @click.argument('instance')
 def clean_build(instance):
     bc.clean_test(instance)
+
 
 @clean.command('image')
 @click.argument('instance')
 def clean_image(instance):
     bc.clean_image(instance)
 
+
 def validate_instance(instance, config):
     if instance not in config:
         click.echo('No such instance {} configured'.format(instance))
         raise click.Abort()
+
 
 @contextlib.contextmanager
 def load_config():
@@ -165,6 +183,7 @@ def load_config():
     except bc.ConfigurationError as e:
         click.echo(e)
         raise click.Abort()
+
 
 @contextlib.contextmanager
 def load_config_v2():
