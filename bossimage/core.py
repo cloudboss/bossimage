@@ -898,7 +898,7 @@ def transform_config(doc):
             transformed[instance]['test'].update({
                 k: v for k, v in platform.items() if k not in excluded_items
             })
-            transformed[instance]['build'].update(platform['test'].copy())
+            transformed[instance]['test'].update(platform['test'].copy())
 
             transformed[instance]['platform'] = platform['name']
             transformed[instance]['profile'] = profile['name']
