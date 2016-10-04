@@ -257,16 +257,16 @@ def add_to_inventory(path, group, ip, keyfile, username, password, port, connect
         inventory = dict()
     entry = inventory_entry(group, ip, keyfile, username, password, port, connection)
     inventory.update(entry)
-    write_inventory_file(path, inventory)
+    write_inventory(path, inventory)
 
 
 def remove_from_inventory(path, group):
     inventory = parse_inventory(path)
     del(inventory[group])
-    write_inventory_file(path, inventory)
+    write_inventory(path, inventory)
 
 
-def write_inventory_file(path, inventory):
+def write_inventory(path, inventory):
     inventory_string = '\n'.join(['[{}]\n{}'.format(grp, '\n'.join(hosts)) for grp, hosts in inventory.items()])
     with open(path, 'w') as f:
         f.write(inventory_string)
