@@ -9,6 +9,7 @@ from voluptuous import MultipleInvalid, TypeInvalid
 import bossimage.cli as cli
 import bossimage.core as bc
 
+
 def test_merge_config():
     expected = {
         'amz-2015092-default': {
@@ -65,6 +66,7 @@ def test_merge_config():
 
     assert_equal(c, expected)
 
+
 def test_userdata():
     c = bc.load_config('tests/resources/boss-userdata.yml')
 
@@ -96,6 +98,7 @@ system_info:
     centos_7 = c['centos-7-default']
     assert_equal(bc.user_data(centos_7), '')
 
+
 def test_load_config_not_found():
     nosuchfile = bc.random_string(100)
 
@@ -106,6 +109,7 @@ def test_load_config_not_found():
         r.exception.message,
         'Error loading {}: not found'.format(nosuchfile)
     )
+
 
 def test_load_config_syntax_error():
     filename = 'tests/resources/boss-badsyntax.yml'
@@ -119,6 +123,7 @@ def test_load_config_syntax_error():
         expected.format(filename)
     )
 
+
 def test_load_config_validation_error1():
     filename = 'tests/resources/boss-bad1.yml'
 
@@ -131,6 +136,7 @@ def test_load_config_validation_error1():
         expected.format(filename)
     )
 
+
 def test_load_config_validation_error2():
     filename = 'tests/resources/boss-bad2.yml'
 
@@ -142,6 +148,7 @@ def test_load_config_validation_error2():
         r.exception.message,
         expected.format(filename)
     )
+
 
 def test_env_vars():
     default_user = 'ec2-user'
