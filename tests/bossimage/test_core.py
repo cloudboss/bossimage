@@ -1,4 +1,6 @@
 import os
+import tempfile
+import StringIO
 
 import yaml
 from nose.tools import assert_equal, assert_raises
@@ -153,3 +155,36 @@ def test_env_vars():
     os.environ['BI_USERNAME'] = override_user
     c2 = bc.load_config('tests/resources/boss-env.yml')
     assert_equal(c2['amz-2015092-default']['username'], override_user)
+
+
+def make_inventory_string():
+    return '''
+    [build]
+    {}
+    [test]
+    {}
+    '''.format(
+        bc.inventory_entry('10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh'),
+        bc.inventory_entry('10.10.10.251', 'rockafella.pem', 'ec2-user', None, '22', 'ssh'),
+    )
+
+
+def test_parse_inventory():
+    fdesc = StringIO.StringIO(make_inventory_string())
+
+    expected_result = {
+        'build': '10.10.10.250 ' \
+            'ansible_ssh_private_key_file=rockafella.pem ' \
+            'ansible_user=ec2-user ' \
+            'ansible_password=None ' \
+            'ansible_port=22 ' \
+            'ansible_connection=ssh',
+        'test': '10.10.10.251 ' \
+            'ansible_ssh_private_key_file=rockafella.pem ' \
+            'ansible_user=ec2-user ' \
+            'ansible_password=None ' \
+            'ansible_port=22 ' \
+            'ansible_connection=ssh',
+    }
+    actual_result = bc.parse_inventory(fdesc)
+    assert_equal(actual_result, expected_result)

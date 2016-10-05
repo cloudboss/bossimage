@@ -216,58 +216,47 @@ def decrypt_password(password_file, keyfile):
     return password
 
 
-def parse_inventory(path):
+def parse_inventory(fdesc):
     inventory = {}
     section = None
-    with open(path) as f:
-        for line in f.readlines():
-            whitespace_match = re.match('^\s*$', line)
-            if whitespace_match:
-                continue
+    for line in fdesc.readlines():
+        whitespace_match = re.match('^\s*$', line)
+        if whitespace_match:
+            continue
 
-            section_match = re.match('\[(?P<section>\w+)\]\s*', line)
-            if section_match:
-                section = section_match.groupdict()['section']
-                inventory[section] = []
-                continue
+        section_match = re.match('^\s*\[(?P<section>\w+)\]\s*', line)
+        if section_match:
+            section = section_match.groupdict()['section']
+            continue
 
-            inventory[section].append(line.strip())
+        inventory[section] = line.strip()
     return inventory
 
 
-def inventory_entry(group, ip, keyfile, username, password, port, connection):
-    return {
-        group: [
-            '{} ' \
-            'ansible_ssh_private_key_file={} ' \
-            'ansible_user={} ' \
-            'ansible_password={} ' \
-            'ansible_port={} ' \
-            'ansible_connection={}'.format(
-                ip, keyfile, username, password, port, connection
-            )
-        ]
-    }
+def inventory_entry(ip, keyfile, username, password, port, connection):
+    return  '{} ' \
+        'ansible_ssh_private_key_file={} ' \
+        'ansible_user={} ' \
+        'ansible_password={} ' \
+        'ansible_port={} ' \
+        'ansible_connection={}'.format(
+            ip, keyfile, username, password, port, connection
+        )
 
 
-def add_to_inventory(path, group, ip, keyfile, username, password, port, connection):
-    if os.path.exists(path):
-        inventory = parse_inventory(path)
+@contextlib.contextmanager
+def load_inventory(instance):
+    files = instance_files(instance)
+    if os.path.exists(files['inventory']):
+        inventory = parse_inventory(f)
     else:
         inventory = dict()
-    entry = inventory_entry(group, ip, keyfile, username, password, port, connection)
-    inventory.update(entry)
-    write_inventory(path, inventory)
-
-
-def remove_from_inventory(path, group):
-    inventory = parse_inventory(path)
-    del(inventory[group])
-    write_inventory(path, inventory)
+    yield inventory
+    write_inventory(files['inventory'], inventory)
 
 
 def write_inventory(path, inventory):
-    inventory_string = '\n'.join(['[{}]\n{}'.format(grp, '\n'.join(hosts)) for grp, hosts in inventory.items()])
+    inventory_string = '\n'.join(['[{}]\n{}'.format(grp, host) for grp, host in inventory.items()])
     with open(path, 'w') as f:
         f.write(inventory_string)
     os.chmod(path, 0600)
@@ -282,11 +271,13 @@ def write_playbook(playbook, phase, config):
         )]))
 
 
-def write_files(files, ec2_instance, keyname, config, password):
+def write_files(instance, files, ec2_instance, keyname, config, password):
     if config['associate_public_ip_address']:
         ip_address = ec2_instance.public_ip_address
     else:
         ip_address = ec2_instance.private_ip_address
+
+    files = instance_files(instance)
 
     with open(files['state'], 'w') as f:
         f.write(yaml.safe_dump(dict(
@@ -297,10 +288,11 @@ def write_files(files, ec2_instance, keyname, config, password):
             )
         )))
 
-    add_to_inventory(
-        files['inventory'], 'build', ip_address, files['keyfile'],
-        config['username'], password, config['port'], config['connection']
-    )
+    with load_inventory(instance) as inventory:
+        inventory['build'] = inventory_entry(
+            ip_address, files['keyfile'], config['username'],
+            password, config['port'], config['connection']
+        )
 
     write_playbook(files['playbook'], 'build', config)
 
@@ -338,10 +330,12 @@ def possibly_create_instance(instance, phase, config, state):
 
     connection = config['connection']
     password = get_windows_password(ec2_instance, keyfile) if connection == 'winrm' else None
-    add_to_inventory(
-        files['inventory'], phase, ip_address, keyfile,
-        config['username'], password, config['port'], connection
-    )
+
+    with load_inventory(instance) as inventory:
+        inventory[phase] = inventory_entry(
+            ip_address, keyfile, config['username'],
+            password, config['port'], connection
+        )
 
     if phase == 'build':
         write_playbook(files['playbook'], 'build', config)
@@ -367,7 +361,7 @@ def load_or_create_instance(config):
         else:
             password = None
 
-        write_files(files, ec2_instance, keyname, config, password)
+        write_files(instance, files, ec2_instance, keyname, config, password)
 
     with open(files['state']) as f:
         return yaml.load(f)
@@ -559,8 +553,8 @@ def clean_instance(instance, phase):
         print('Deleted instance {}'.format(ec2_instance.id))
         del(state[phase])
 
-        files = instance_files(instance)
-        remove_from_inventory(files['inventory'], phase)
+        with load_inventory(instance) as inventory:
+            del(inventory[phase])
 
         if 'build' not in state and 'test' not in state:
             delete_keypair(state)
@@ -568,7 +562,7 @@ def clean_instance(instance, phase):
         should_delete_files = 'build' not in state and 'image' not in state and 'test' not in state
 
     if should_delete_files:
-        delete_files(files)
+        delete_files(instance_files(instance))
 
 
 def clean_image(instance):
