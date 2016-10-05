@@ -374,13 +374,12 @@ def load_or_create_instance(config):
 
 
 def wait_for_image(image):
-    with Spinner('image'):
-        while(True):
-            image.reload()
-            if image.state == 'available':
-                break
-            else:
-                time.sleep(15)
+    while(True):
+        image.reload()
+        if image.state == 'available':
+            break
+        else:
+            time.sleep(15)
 
 
 def wait_for_password(ec2_instance):
@@ -536,7 +535,8 @@ def make_image(instance, config):
         image = ec2_instance.create_image(Name=image_name)
         print('Created image {} with name {}'.format(image.id, image_name))
 
-        wait_for_image(image)
+        with Spinner('image'):
+            wait_for_image(image)
         state['image'] = {'ami_id': image.id}
 
 
