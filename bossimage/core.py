@@ -248,7 +248,8 @@ def inventory_entry(ip, keyfile, username, password, port, connection):
 def load_inventory(instance):
     files = instance_files(instance)
     if os.path.exists(files['inventory']):
-        inventory = parse_inventory(f)
+        with open(files['inventory']) as f:
+            inventory = parse_inventory(f)
     else:
         inventory = dict()
     yield inventory
