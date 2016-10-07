@@ -450,33 +450,33 @@ def make_build(instance, config, verbosity):
     with load_state(instance) as state:
         possibly_create_instance(instance, 'build', config, state)
 
-        files = instance_files(instance)
+    files = instance_files(instance)
 
-        ip = state['build']['ip']
-        port = config['port']
-        end = time.time() + config['connection_timeout']
-        with Spinner('connection to {}:{}'.format(ip, port)):
-            wait_for_connection(ip, port, files['inventory'], 'build', config['connection'], end)
+    ip = state['build']['ip']
+    port = config['port']
+    end = time.time() + config['connection_timeout']
+    with Spinner('connection to {}:{}'.format(ip, port)):
+        wait_for_connection(ip, port, files['inventory'], 'build', config['connection'], end)
 
-        env = os.environ.copy()
-        env.update(dict(ANSIBLE_ROLES_PATH='.boss/roles:..'))
+    env = os.environ.copy()
+    env.update(dict(ANSIBLE_ROLES_PATH='.boss/roles:..'))
 
-        ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', 'requirements.yml']
-        if verbosity:
-            ansible_galaxy_args.append('-' + 'v' * verbosity)
-        ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
-        ansible_galaxy.wait()
+    ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', 'requirements.yml']
+    if verbosity:
+        ansible_galaxy_args.append('-' + 'v' * verbosity)
+    ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
+    ansible_galaxy.wait()
 
-        env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
+    env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
 
-        ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
-        if verbosity:
-            ansible_playbook_args.append('-' + 'v' * verbosity)
-        if config['extra_vars']:
-            ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
-        ansible_playbook_args.append(files['playbook'])
-        ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
-        return ansible_playbook.wait()
+    ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
+    if verbosity:
+        ansible_playbook_args.append('-' + 'v' * verbosity)
+    if config['extra_vars']:
+        ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
+    ansible_playbook_args.append(files['playbook'])
+    ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
+    return ansible_playbook.wait()
 
 
 def make_test(instance, config, verbosity):
@@ -486,28 +486,28 @@ def make_test(instance, config, verbosity):
 
         possibly_create_instance(instance, 'test', config, state)
 
-        files = instance_files(instance)
+    files = instance_files(instance)
 
-        ip = state['test']['ip']
-        port = config['port']
-        end = time.time() + config['connection_timeout']
-        with Spinner('connection to {}:{}'.format(ip, port)):
-            wait_for_connection(ip, port, files['inventory'], 'test', config['connection'], end)
+    ip = state['test']['ip']
+    port = config['port']
+    end = time.time() + config['connection_timeout']
+    with Spinner('connection to {}:{}'.format(ip, port)):
+        wait_for_connection(ip, port, files['inventory'], 'test', config['connection'], end)
 
-        env = os.environ.copy()
-        env.update(dict(
-            ANSIBLE_ROLES_PATH='.boss/roles:..',
-            ANSIBLE_HOST_KEY_CHECKING='False',
-        ))
+    env = os.environ.copy()
+    env.update(dict(
+        ANSIBLE_ROLES_PATH='.boss/roles:..',
+        ANSIBLE_HOST_KEY_CHECKING='False',
+    ))
 
-        ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
-        if verbosity:
-            ansible_playbook_args.append('-' + 'v' * verbosity)
-        if 'extra_vars' in config and config['extra_vars']:
-            ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
-        ansible_playbook_args.append(config['playbook'])
-        ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
-        return ansible_playbook.wait()
+    ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
+    if verbosity:
+        ansible_playbook_args.append('-' + 'v' * verbosity)
+    if 'extra_vars' in config and config['extra_vars']:
+        ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
+    ansible_playbook_args.append(config['playbook'])
+    ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
+    return ansible_playbook.wait()
 
 
 def make_image(instance, config):
@@ -554,15 +554,13 @@ def clean_instance(instance, phase):
         print('Deleted instance {}'.format(ec2_instance.id))
         del(state[phase])
 
-        with load_inventory(instance) as inventory:
-            del(inventory[phase])
+    with load_inventory(instance) as inventory:
+        del(inventory[phase])
 
-        if 'build' not in state and 'test' not in state:
-            delete_keypair(state)
+    if 'build' not in state and 'test' not in state:
+        delete_keypair(state)
 
-        should_delete_files = 'build' not in state and 'image' not in state and 'test' not in state
-
-    if should_delete_files:
+    if 'build' not in state and 'image' not in state and 'test' not in state:
         delete_files(instance_files(instance))
 
 
@@ -577,9 +575,7 @@ def clean_image(instance):
         print('Deregistered image {}'.format(state['image']['ami_id']))
         del(state['image'])
 
-        should_delete_files = 'build' not in state and 'test' not in state
-
-    if should_delete_files:
+    if 'build' not in state and 'test' not in state:
         delete_files(instance_files(instance))
 
 
