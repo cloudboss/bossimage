@@ -186,16 +186,19 @@ def create_instance(config, files, keyname):
 
 
 def role_name():
-    return os.path.basename(os.getcwd())
+    env_role = os.getenv('BI_ROLE_NAME')
+    return env_role if env_role else os.path.basename(os.getcwd())
 
 
 def role_version():
-    if os.path.exists('.role-version'):
-        with open('.role-version') as f:
-            version = f.read().strip()
-    else:
-        version = 'unset'
-    return version
+    def file_version():
+        if os.path.exists('.role-version'):
+            with open('.role-version') as f:
+                version = f.read().strip()
+        else:
+            version = 'unset'
+    env_version = os.getenv('BI_ROLE_VERSION')
+    return env_version if env_version else file_version()
 
 
 def decrypt_password(password_file, keyfile):
