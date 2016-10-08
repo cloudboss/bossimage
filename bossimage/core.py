@@ -122,10 +122,6 @@ def gen_keyname():
     return 'bossimage-' + random_string()
 
 
-def create_working_dir():
-    if not os.path.exists('.boss'): os.mkdir('.boss')
-
-
 def user_data(config):
     if type(config['user_data']) == dict:
         with open(config['user_data']['file']) as f:
@@ -309,37 +305,35 @@ def get_windows_password(ec2_instance, keyfile):
     return password
 
 
-def possibly_create_instance(instance, phase, config, state):
-    if phase in state: return
+def create_instance_v2(instance, phase, config, image_id, keyname):
+    instance_params = dict(
+        ImageId=image_id,
+        InstanceType=config['instance_type'],
+        MinCount=1,
+        MaxCount=1,
+        KeyName=keyname,
+        NetworkInterfaces=[dict(
+            DeviceIndex=0,
+            AssociatePublicIpAddress=config['associate_public_ip_address'],
+        )],
+        BlockDeviceMappings=camelify(config['block_device_mappings']),
+        UserData=user_data(config),
+    )
+    if config['subnet']:
+        subnet_id = subnet_id_for(config['subnet'])
+        instance_params['NetworkInterfaces'][0]['SubnetId'] = subnet_id
+    if config['security_groups']:
+        sg_ids = [sg_id_for(name) for name in config['security_groups']]
+        instance_params['NetworkInterfaces'][0]['Groups'] = sg_ids
 
-    files = instance_files(instance)
-    keyfile = files['keyfile']
+    (ec2_instance,) = ec2_connect().create_instances(**instance_params)
+    print('Created instance {}'.format(ec2_instance.id))
 
-    if phase == 'build':
-        keyname = gen_keyname()
-        create_keypair(keyname, keyfile)
-        state['keyname'] = keyname
+    with Spinner('instance', 'to be running'):
+        ec2_instance.wait_until_running()
 
-    source_ami = state['image']['ami_id'] if phase == 'test' else None
-    ec2_instance = create_instance(config, files, state['keyname'], state)
-    public_ip = config['associate_public_ip_address']
-    ip_address = ec2_instance.public_ip_address if public_ip else ec2_instance.private_ip_address
-    state[phase] = {
-        'id': ec2_instance.id,
-        'ip': ip_address,
-    }
-
-    connection = config['connection']
-    password = get_windows_password(ec2_instance, keyfile) if connection == 'winrm' else None
-
-    with load_inventory(instance) as inventory:
-        inventory[phase] = inventory_entry(
-            ip_address, keyfile, config['username'],
-            password, config['port'], connection
-        )
-
-    if phase == 'build':
-        write_playbook(files['playbook'], 'build', config)
+    ec2_instance.reload()
+    return ec2_instance
 
 
 def load_or_create_instance(config):
@@ -411,7 +405,8 @@ def wait_for_connection(addr, port, inventory, group, connection, end):
 
 
 def run(instance, config, verbosity):
-    create_working_dir()
+    if not os.path.exists('.boss'): os.mkdir('.boss')
+
     files = instance_files(instance)
 
     instance_info = load_or_create_instance(config)
@@ -445,12 +440,42 @@ def run(instance, config, verbosity):
 
 
 def make_build(instance, config, verbosity):
-    create_working_dir()
-
-    with load_state(instance) as state:
-        possibly_create_instance(instance, 'build', config, state)
+    if not os.path.exists('.boss'):
+        os.mkdir('.boss')
 
     files = instance_files(instance)
+
+    with load_state(instance) as state:
+        if 'keyname' not in state:
+            keyname = gen_keyname()
+            create_keypair(keyname, files['keyfile'])
+            state['keyname'] = keyname
+
+    with load_state(instance) as state:
+        if 'build' not in state:
+            ec2_instance = create_instance_v2(
+                instance, 'build', config, ami_id_for(config['source_ami']), state['keyname']
+            )
+            public_ip = config['associate_public_ip_address']
+            ip_address = ec2_instance.public_ip_address if public_ip else ec2_instance.private_ip_address
+            state['build'] = {
+                'id': ec2_instance.id,
+                'ip': ip_address,
+            }
+
+    with load_inventory(instance) as inventory:
+        if 'build' not in inventory:
+            ec2_instance = ec2_connect().Instance(id=state['build']['id'])
+            connection = config['connection']
+            password = get_windows_password(ec2_instance, keyfile) if connection == 'winrm' else None
+
+            inventory['build'] = inventory_entry(
+                state['build']['ip'], files['keyfile'], config['username'],
+                password, config['port'], connection
+            )
+
+    if not os.path.exists(files['playbook']):
+        write_playbook(files['playbook'], 'build', config)
 
     ip = state['build']['ip']
     port = config['port']
@@ -458,25 +483,7 @@ def make_build(instance, config, verbosity):
     with Spinner('connection to {}:{}'.format(ip, port)):
         wait_for_connection(ip, port, files['inventory'], 'build', config['connection'], end)
 
-    env = os.environ.copy()
-    env.update(dict(ANSIBLE_ROLES_PATH='.boss/roles:..'))
-
-    ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', 'requirements.yml']
-    if verbosity:
-        ansible_galaxy_args.append('-' + 'v' * verbosity)
-    ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
-    ansible_galaxy.wait()
-
-    env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
-
-    ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
-    if verbosity:
-        ansible_playbook_args.append('-' + 'v' * verbosity)
-    if config['extra_vars']:
-        ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
-    ansible_playbook_args.append(files['playbook'])
-    ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
-    return ansible_playbook.wait()
+    run_ansible(verbosity, files['inventory'], files['playbook'], config['extra_vars'])
 
 
 def make_test(instance, config, verbosity):
@@ -484,9 +491,29 @@ def make_test(instance, config, verbosity):
         if 'test' not in state and 'image' not in state:
             raise StateError('Cannot run `make test` before `make image`')
 
-        possibly_create_instance(instance, 'test', config, state)
+        if 'test' not in state:
+            ec2_instance = create_instance_v2(
+                instance, 'build', config, state['image']['ami_id'], state['keyname']
+            )
+            public_ip = config['associate_public_ip_address']
+            ip_address = ec2_instance.public_ip_address if public_ip else ec2_instance.private_ip_address
+            state['test'] = {
+                'id': ec2_instance.id,
+                'ip': ip_address,
+            }
 
     files = instance_files(instance)
+
+    with load_inventory(instance) as inventory:
+        if 'test' not in inventory:
+            ec2_instance = ec2_connect().Instance(id=state['test']['id'])
+            connection = config['connection']
+            password = get_windows_password(ec2_instance, keyfile) if connection == 'winrm' else None
+
+            inventory['test'] = inventory_entry(
+                state['test']['ip'], files['keyfile'], config['username'],
+                password, config['port'], connection
+            )
 
     ip = state['test']['ip']
     port = config['port']
@@ -494,18 +521,28 @@ def make_test(instance, config, verbosity):
     with Spinner('connection to {}:{}'.format(ip, port)):
         wait_for_connection(ip, port, files['inventory'], 'test', config['connection'], end)
 
+    run_ansible(verbosity, files['inventory'], config['playbook'], {})
+
+
+def run_ansible(verbosity, inventory, playbook, extra_vars):
     env = os.environ.copy()
     env.update(dict(
         ANSIBLE_ROLES_PATH='.boss/roles:..',
         ANSIBLE_HOST_KEY_CHECKING='False',
     ))
 
-    ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
+    ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', 'requirements.yml']
+    if verbosity:
+        ansible_galaxy_args.append('-' + 'v' * verbosity)
+    ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
+    ansible_galaxy.wait()
+
+    ansible_playbook_args = ['ansible-playbook', '-i', inventory]
     if verbosity:
         ansible_playbook_args.append('-' + 'v' * verbosity)
-    if 'extra_vars' in config and config['extra_vars']:
-        ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
-    ansible_playbook_args.append(config['playbook'])
+    if extra_vars:
+        ansible_playbook_args += ['--extra-vars', json.dumps(extra_vars)]
+    ansible_playbook_args.append(playbook)
     ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
     return ansible_playbook.wait()
 

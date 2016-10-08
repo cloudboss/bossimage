@@ -56,7 +56,7 @@ def mock_ec2():
         instance.public_ip_address = '20.30.40.50'
         instance.load = lambda: None
         instance.reload = lambda: None
-        instance.password_data = lambda: {'PasswordData': 'uncrackable'}
+        instance.wait_until_running = lambda: None
         return [instance]
 
     def images_filter(ImageIds='', Filters=[]):
@@ -77,6 +77,7 @@ def mock_ec2():
         instance.virtualization_type = 'hvm'
         instance.create_image = create_image
         instance.load = lambda: None
+        instance.password_data = lambda: {'PasswordData': 'uncrackable'}
         return instance
 
     m = mock.Mock()
