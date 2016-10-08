@@ -463,25 +463,16 @@ def make_build(instance, config, verbosity):
                 'ip': ip_address,
             }
 
-    with load_inventory(instance) as inventory:
-        if 'build' not in inventory:
-            ec2_instance = ec2_connect().Instance(id=state['build']['id'])
-            connection = config['connection']
-            password = get_windows_password(ec2_instance, keyfile) if connection == 'winrm' else None
+    ensure_inventory(instance, 'build', config, files['keyfile'], state['build']['id'], state['build']['ip'])
 
-            inventory['build'] = inventory_entry(
-                state['build']['ip'], files['keyfile'], config['username'],
-                password, config['port'], connection
-            )
+    with Spinner('connection to {}:{}'.format(state['build']['ip'], config['port'])):
+        wait_for_connection(
+            state['build']['ip'], config['port'], files['inventory'], 'build',
+            config['connection'], time.time() + config['connection_timeout']
+        )
 
     if not os.path.exists(files['playbook']):
         write_playbook(files['playbook'], 'build', config)
-
-    ip = state['build']['ip']
-    port = config['port']
-    end = time.time() + config['connection_timeout']
-    with Spinner('connection to {}:{}'.format(ip, port)):
-        wait_for_connection(ip, port, files['inventory'], 'build', config['connection'], end)
 
     run_ansible(verbosity, files['inventory'], files['playbook'], config['extra_vars'])
 
@@ -504,24 +495,28 @@ def make_test(instance, config, verbosity):
 
     files = instance_files(instance)
 
+    ensure_inventory(instance, 'test', config, files['keyfile'], state['test']['id'], state['test']['ip'])
+
+    with Spinner('connection to {}:{}'.format(state['test']['ip'], config['port'])):
+        wait_for_connection(
+            state['test']['ip'], config['port'], files['inventory'], 'test',
+            config['connection'], time.time() + config['connection_timeout']
+        )
+
+    run_ansible(verbosity, files['inventory'], config['playbook'], {})
+
+
+def ensure_inventory(instance, phase, config, keyfile, ident, ip):
     with load_inventory(instance) as inventory:
-        if 'test' not in inventory:
-            ec2_instance = ec2_connect().Instance(id=state['test']['id'])
+        if phase not in inventory:
+            ec2_instance = ec2_connect().Instance(id=ident)
             connection = config['connection']
             password = get_windows_password(ec2_instance, keyfile) if connection == 'winrm' else None
 
-            inventory['test'] = inventory_entry(
-                state['test']['ip'], files['keyfile'], config['username'],
+            inventory[phase] = inventory_entry(
+                ip, keyfile, config['username'],
                 password, config['port'], connection
             )
-
-    ip = state['test']['ip']
-    port = config['port']
-    end = time.time() + config['connection_timeout']
-    with Spinner('connection to {}:{}'.format(ip, port)):
-        wait_for_connection(ip, port, files['inventory'], 'test', config['connection'], end)
-
-    run_ansible(verbosity, files['inventory'], config['playbook'], {})
 
 
 def run_ansible(verbosity, inventory, playbook, extra_vars):
