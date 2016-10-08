@@ -151,13 +151,9 @@ def tag_instance(tags, instance):
     print('Tagged instance with {}'.format(tags))
 
 
-def create_instance(config, files, keyname, state=None):
-    if state and 'image' in state:
-        ami_id = state['image']['ami_id']
-    else:
-        ami_id = ami_id_for(config['source_ami'])
+def create_instance(config, files, keyname):
     instance_params = dict(
-        ImageId=ami_id,
+        ImageId=ami_id_for(config['source_ami']),
         InstanceType=config['instance_type'],
         MinCount=1,
         MaxCount=1,
