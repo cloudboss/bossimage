@@ -258,10 +258,10 @@ def write_inventory(path, inventory):
     os.chmod(path, 0600)
 
 
-def write_playbook(playbook, phase, config):
+def write_playbook(playbook, config):
     with open(playbook, 'w') as f:
         f.write(yaml.safe_dump([dict(
-            hosts=phase,
+            hosts='build',
             become=config['become'],
             roles=[role_name()],
         )]))
@@ -290,7 +290,7 @@ def write_files(instance, files, ec2_instance, keyname, config, password):
             password, config['port'], config['connection']
         )
 
-    write_playbook(files['playbook'], 'build', config)
+    write_playbook(files['playbook'], config)
 
 
 def get_windows_password(ec2_instance, keyfile):
@@ -471,7 +471,7 @@ def make_build(instance, config, verbosity):
         )
 
     if not os.path.exists(files['playbook']):
-        write_playbook(files['playbook'], 'build', config)
+        write_playbook(files['playbook'], config)
 
     run_ansible(verbosity, files['inventory'], files['playbook'], config['extra_vars'])
 
