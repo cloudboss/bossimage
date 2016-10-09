@@ -233,6 +233,16 @@ def test_inventory_addition_and_removal():
     assert_equal(inventory, {'test': test_entry})
 
 
+def test_role_name():
+    cwd = os.getcwd().split('/')[-1]
+    assert_equal(bc.role_name(), cwd)
+
+    new_role_name = 'mzwangendwa'
+
+    os.environ['BI_ROLE_NAME'] = new_role_name
+    assert_equal(bc.role_name(), new_role_name)
+
+
 def test_role_version():
     print(bc.role_version())
     assert_equal(bc.role_version(), 'unset')
