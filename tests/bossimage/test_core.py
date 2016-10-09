@@ -8,6 +8,7 @@ from voluptuous import MultipleInvalid, TypeInvalid
 
 import bossimage.cli as cli
 import bossimage.core as bc
+from tests.bossimage import tempdir
 
 
 def test_merge_config():
@@ -176,6 +177,17 @@ def make_inventory_string():
     )
 
 
+def test_inventory_entry():
+    gen_entry = bc.inventory_entry('10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh')
+    expected_entry = '10.10.10.250 ' \
+                     'ansible_ssh_private_key_file=rockafella.pem ' \
+                     'ansible_user=ec2-user ' \
+                     'ansible_password=None ' \
+                     'ansible_port=22 ' \
+                     'ansible_connection=ssh'
+    assert_equal(gen_entry, expected_entry)
+
+
 def test_parse_inventory():
     fdesc = StringIO.StringIO(make_inventory_string())
 
@@ -195,6 +207,30 @@ def test_parse_inventory():
     }
     actual_result = bc.parse_inventory(fdesc)
     assert_equal(actual_result, expected_result)
+
+
+def test_inventory_addition_and_removal():
+    instance = 'centos-7-default'
+    inventory_file = '{}/{}.inventory'.format(tempdir, instance)
+    build_entry = bc.inventory_entry('10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh')
+    test_entry = bc.inventory_entry('10.10.10.251', 'rockafella.pem', 'ec2-user', None, '22', 'ssh')
+
+    assert(not os.path.exists(inventory_file))
+
+    with bc.load_inventory(instance) as inventory:
+        assert_equal(inventory, {})
+        inventory['build'] = build_entry
+        inventory['test'] = test_entry
+
+    assert(os.path.exists(inventory_file))
+    assert_equal(inventory['build'], build_entry)
+    assert_equal(inventory['test'], test_entry)
+
+    with bc.load_inventory(instance) as inventory:
+        assert('build' in inventory)
+        del(inventory['build'])
+
+    assert_equal(inventory, {'test': test_entry})
 
 
 def test_role_version():
