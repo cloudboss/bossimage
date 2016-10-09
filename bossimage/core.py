@@ -483,7 +483,7 @@ def make_test(instance, config, verbosity):
 
         if 'test' not in state:
             ec2_instance = create_instance_v2(
-                config, state['image']['ami_id'], state['keyname']
+                config, state['image']['id'], state['keyname']
             )
             public_ip = config['associate_public_ip_address']
             ip_address = ec2_instance.public_ip_address if public_ip else ec2_instance.private_ip_address
@@ -563,7 +563,7 @@ def make_image(instance, config):
 
         with Spinner('image'):
             wait_for_image(image)
-        state['image'] = {'ami_id': image.id}
+        state['image'] = {'id': image.id}
 
 
 def clean_build(instance):
@@ -601,9 +601,9 @@ def clean_image(instance):
             print('No image found for {}'.format(instance))
             return
 
-        (image,) = ec2_connect().images.filter(ImageIds=[state['image']['ami_id']])
+        (image,) = ec2_connect().images.filter(ImageIds=[state['image']['id']])
         image.deregister()
-        print('Deregistered image {}'.format(state['image']['ami_id']))
+        print('Deregistered image {}'.format(state['image']['id']))
         del(state['image'])
 
     if 'build' not in state and 'test' not in state:
