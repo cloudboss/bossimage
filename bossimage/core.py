@@ -304,7 +304,7 @@ def get_windows_password(ec2_instance, keyfile):
     return password
 
 
-def create_instance_v2(instance, phase, config, image_id, keyname):
+def create_instance_v2(config, image_id, keyname):
     instance_params = dict(
         ImageId=image_id,
         InstanceType=config['instance_type'],
@@ -453,7 +453,7 @@ def make_build(instance, config, verbosity):
     with load_state(instance) as state:
         if 'build' not in state:
             ec2_instance = create_instance_v2(
-                instance, 'build', config, ami_id_for(config['source_ami']), state['keyname']
+                config, ami_id_for(config['source_ami']), state['keyname']
             )
             public_ip = config['associate_public_ip_address']
             ip_address = ec2_instance.public_ip_address if public_ip else ec2_instance.private_ip_address
@@ -483,7 +483,7 @@ def make_test(instance, config, verbosity):
 
         if 'test' not in state:
             ec2_instance = create_instance_v2(
-                instance, 'build', config, state['image']['ami_id'], state['keyname']
+                config, state['image']['ami_id'], state['keyname']
             )
             public_ip = config['associate_public_ip_address']
             ip_address = ec2_instance.public_ip_address if public_ip else ec2_instance.private_ip_address
