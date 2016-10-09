@@ -151,7 +151,7 @@ def test_load_config_validation_error2():
     )
 
 
-def test_env_vars():
+def test_config_env_vars():
     default_user = 'ec2-user'
     override_user = 'shisaboy'
 
@@ -209,7 +209,7 @@ def test_parse_inventory():
     assert_equal(actual_result, expected_result)
 
 
-def test_inventory_addition_and_removal():
+def test_load_inventory():
     instance = 'centos-7-default'
     inventory_file = '{}/{}.inventory'.format(tempdir, instance)
     build_entry = bc.inventory_entry('10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh')
