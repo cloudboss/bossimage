@@ -195,3 +195,13 @@ def test_parse_inventory():
     }
     actual_result = bc.parse_inventory(fdesc)
     assert_equal(actual_result, expected_result)
+
+
+def test_role_version():
+    print(bc.role_version())
+    assert_equal(bc.role_version(), 'unset')
+
+    new_role_version = '3.14'
+
+    os.environ['BI_ROLE_VERSION'] = new_role_version
+    assert_equal(bc.role_version(), new_role_version)
