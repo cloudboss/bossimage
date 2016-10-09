@@ -40,7 +40,6 @@ def ec2_connect():
 def mock_ec2():
     def create_key_pair(KeyName=''):
         keypair = mock.Mock()
-        keypair.key_fingerprint = 'nobodygonnaseethis'
         keypair.key_material = 'thiskeyistotallyvalid'
         keypair.key_name = KeyName
         return keypair
