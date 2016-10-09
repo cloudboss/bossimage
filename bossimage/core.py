@@ -666,13 +666,13 @@ def load_state(instance):
         f.write(yaml.safe_dump(state))
 
 
-def resource_id_for(service, service_desc, name, prefix, flt):
+def resource_id_for(collection, collection_desc, name, prefix, flt):
     if name.startswith(prefix): return name
-    item = list(service.filter(Filters=[flt]))
+    item = list(collection.filter(Filters=[flt]))
     if item:
         return item[0].id
     else:
-        desc = '{} "{}"'.format(service_desc, name)
+        desc = '{} "{}"'.format(collection_desc, name)
         raise ItemNotFound(desc)
 
 
