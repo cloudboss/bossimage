@@ -237,17 +237,30 @@ def test_role_name():
     cwd = os.getcwd().split('/')[-1]
     assert_equal(bc.role_name(), cwd)
 
-    new_role_name = 'mzwangendwa'
+    env_role_name = 'mzwangendwa'
 
-    os.environ['BI_ROLE_NAME'] = new_role_name
-    assert_equal(bc.role_name(), new_role_name)
+    os.environ['BI_ROLE_NAME'] = env_role_name
+    assert_equal(bc.role_name(), env_role_name)
 
 
 def test_role_version():
-    print(bc.role_version())
-    assert_equal(bc.role_version(), 'unset')
+    cwd = os.getcwd()
+    try:
+        os.chdir(tempdir)
 
-    new_role_version = '3.14'
+        assert_equal(bc.role_version(), 'unset')
 
-    os.environ['BI_ROLE_VERSION'] = new_role_version
-    assert_equal(bc.role_version(), new_role_version)
+        file_role_version = '100'
+        with open('.role-version', 'w') as f:
+            f.write(file_role_version)
+
+        assert_equal(bc.role_version(), file_role_version)
+
+        os.unlink('.role-version')
+
+        env_role_version = '3.14'
+
+        os.environ['BI_ROLE_VERSION'] = env_role_version
+        assert_equal(bc.role_version(), env_role_version)
+    finally:
+        os.chdir(cwd)
