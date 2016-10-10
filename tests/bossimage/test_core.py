@@ -8,7 +8,7 @@ from voluptuous import MultipleInvalid, TypeInvalid
 
 import bossimage.cli as cli
 import bossimage.core as bc
-from tests.bossimage import tempdir
+from tests.bossimage import probe, reset_probes, tempdir
 
 
 def test_merge_config():
@@ -264,3 +264,50 @@ def test_role_version():
         assert_equal(bc.role_version(), env_role_version)
     finally:
         os.chdir(cwd)
+
+
+def test_make_build():
+    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    instance = 'amz-2015092-default'
+
+    reset_probes()
+    bc.make_build(instance, config[instance]['build'], 1)
+    assert_equal(probe.called, ['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
+
+    # Ensure that a second run only runs ansible without creating new resources
+    reset_probes()
+    bc.make_build(instance, config[instance]['build'], 1)
+    assert_equal(probe.called, ['run_ansible'])
+
+
+def test_make_test():
+    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    instance = 'amz-2015092-default'
+
+    with assert_raises(bc.StateError) as r:
+        bc.make_test(instance, config[instance]['test'], 1)
+        assert_equal(
+            r.exception.message,
+            'Cannot run `make test` before `make image`'
+        )
+
+    bc.make_build(instance, config[instance]['build'], 1)
+
+    # Should get another StateError because `make image` has not been run
+    with assert_raises(bc.StateError) as r:
+        bc.make_test(instance, config[instance]['test'], 1)
+        assert_equal(
+            r.exception.message,
+            'Cannot run `make test` before `make image`'
+        )
+
+    bc.make_image(instance, config[instance]['build'])
+
+    reset_probes()
+    bc.make_test(instance, config[instance]['test'], 1)
+    assert_equal(probe.called, ['create_instance_v2', 'run_ansible'])
+
+    # As with `build`, a second run should create no new resources
+    reset_probes()
+    bc.make_test(instance, config[instance]['test'], 1)
+    assert_equal(probe.called, ['run_ansible'])

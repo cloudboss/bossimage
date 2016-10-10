@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+import time
 
 from mock import mock
 
@@ -13,14 +14,38 @@ def setup():
     bc.create_working_dir = create_working_dir
     bc.instance_files = instance_files
     bc.ec2_connect = ec2_connect
+    bc.wait_for_connection = wait_for_connection
+    bc.run_ansible = run_ansible
+
+    bc.create_keypair = probe(bc.create_keypair)
+    bc.create_instance_v2 = probe(bc.create_instance_v2)
+    bc.write_playbook = probe(bc.write_playbook)
+    bc.run_ansible = probe(bc.run_ansible)
 
 
 def teardown():
     shutil.rmtree(tempdir)
 
 
+def probe(func):
+    def wrapper(*args, **kwargs):
+        if not getattr(probe, 'called', None):
+            probe.called = []
+        probe.called.append(func.__name__)
+        return func(*args, **kwargs)
+    return wrapper
+
+
+def reset_probes():
+    probe.called = []
+
+
 def create_working_dir():
     pass
+
+
+def wait_for_connection(a, b, c, d, e, f):
+    time.sleep(1)
 
 
 def instance_files(instance):
@@ -35,6 +60,10 @@ def instance_files(instance):
 @bc.cached
 def ec2_connect():
     return mock_ec2()
+
+
+def run_ansible(a, b, c, d):
+    pass
 
 
 def mock_ec2():
@@ -55,7 +84,7 @@ def mock_ec2():
         instance.public_ip_address = '20.30.40.50'
         instance.load = lambda: None
         instance.reload = lambda: None
-        instance.wait_until_running = lambda: None
+        instance.wait_until_running = lambda: time.sleep(1)
         return [instance]
 
     def images_filter(ImageIds='', Filters=[]):
