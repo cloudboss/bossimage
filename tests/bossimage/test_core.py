@@ -242,6 +242,8 @@ def test_role_name():
     os.environ['BI_ROLE_NAME'] = env_role_name
     assert_equal(bc.role_name(), env_role_name)
 
+    del(os.environ['BI_ROLE_NAME'])
+
 
 def test_role_version():
     cwd = os.getcwd()
@@ -264,6 +266,7 @@ def test_role_version():
         assert_equal(bc.role_version(), env_role_version)
     finally:
         os.chdir(cwd)
+        del(os.environ['BI_ROLE_VERSION'])
 
 
 def test_make_build():
