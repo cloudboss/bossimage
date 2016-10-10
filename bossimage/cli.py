@@ -127,7 +127,7 @@ def make_image(instance):
     with load_config_v2() as c:
         validate_instance(instance, c)
         try:
-            bc.make_image(instance, c[instance])
+            bc.make_image(instance, c[instance]['build'])
         except bc.StateError as e:
             click.echo(e)
             raise click.Abort()

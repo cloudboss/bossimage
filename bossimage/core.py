@@ -557,7 +557,7 @@ def make_image(instance, config):
             'vtype': ec2_instance.virtualization_type,
         })
 
-        image_name = config['build']['ami_name'] % config
+        image_name = config['ami_name'] % config
         image = ec2_instance.create_image(Name=image_name)
         print('Created image {} with name {}'.format(image.id, image_name))
 
