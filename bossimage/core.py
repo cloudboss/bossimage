@@ -771,11 +771,6 @@ def re_validator(pat, s, kind):
     return s
 
 
-def coll_validator(coll, kind, thing):
-    if thing not in coll: raise invalid(kind, thing)
-    return thing
-
-
 def is_subnet_id(s):
     return re_validator(r'subnet-[0-9a-f]{8}', s, 'subnet_id')
 
@@ -789,7 +784,8 @@ def is_virtual_name(s):
 
 
 def is_volume_type(s):
-    return coll_validator(('gp2', 'io1', 'standard'), 'volume_type', s)
+    if s not in ('gp2', 'io1', 'standard'): raise invalid('volume_type', s)
+    return s
 
 
 def pre_merge_schema():
