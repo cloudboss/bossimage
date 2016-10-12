@@ -76,14 +76,22 @@ def lst():
 
 
 @main.command()
+@click.option('-p', '--phase', type=click.Choice(['build', 'test']))
 @click.argument('instance')
-def login(instance):
-    with load_config() as c:
-        validate_instance(instance, c)
-        if c[instance]['connection'] == 'winrm':
-            click.echo('Login unsupported for winrm connections')
-            raise click.Abort()
-        bc.login(instance, c[instance])
+def login(phase, instance):
+    if phase:
+        with load_config_v2() as c:
+            validate_instance(instance, c)
+            if c[instance][phase]['connection'] == 'winrm':
+                click.echo('Login unsupported for winrm connections')
+            bc.login(instance, c[instance][phase], phase)
+    else:
+        with load_config() as c:
+            validate_instance(instance, c)
+            if c[instance]['connection'] == 'winrm':
+                click.echo('Login unsupported for winrm connections')
+                raise click.Abort()
+            bc.login(instance, c[instance])
 
 
 @main.command()

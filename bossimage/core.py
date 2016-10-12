@@ -632,7 +632,7 @@ def statuses(config):
     return [(instance, exists(instance)) for instance in config.keys()]
 
 
-def login(instance, config):
+def login(instance, config, phase='build'):
     files = instance_files(instance)
 
     with open(files['state']) as f:
@@ -640,7 +640,7 @@ def login(instance, config):
 
     ssh = subprocess.Popen([
         'ssh', '-i', files['keyfile'],
-        '-l', config['username'], state['build']['ip']
+        '-l', config['username'], state[phase]['ip']
     ])
     ssh.wait()
 
