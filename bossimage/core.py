@@ -589,7 +589,8 @@ def clean_instance(instance, phase):
         del(inventory[phase])
 
     if 'build' not in state and 'test' not in state:
-        delete_keypair(state)
+        with load_state(instance) as state:
+            delete_keypair(state)
 
     if 'build' not in state and 'image' not in state and 'test' not in state:
         delete_files(instance_files(instance))
