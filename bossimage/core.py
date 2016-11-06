@@ -710,7 +710,6 @@ def load_config(path='.boss.yml'):
         yml = template.render()
         c = pre_validate(yaml.load(yml))
         if 'driver' in c:
-            print('Warning: in .boss.yml, `driver` is being deprecated, please use `defaults` instead')
             c['defaults'] = c['driver']
             del(c['driver'])
         if 'defaults' not in c:

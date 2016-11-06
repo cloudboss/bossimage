@@ -39,7 +39,8 @@ def main(): pass
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
 def run(instance, verbosity):
-    click.echo('Warning: the `run` command is being deprecated, please use `make build` instead')
+    click.echo('Warning: the `run` command is being deprecated, please use `make build` instead',
+               err=True)
     with load_config() as c:
         validate_instance(instance, c)
         sys.exit(bc.run(instance, c[instance], verbosity))
@@ -48,7 +49,8 @@ def run(instance, verbosity):
 @main.command()
 @click.argument('instance')
 def image(instance):
-    click.echo('Warning: the `image` command is being deprecated, please use `make image` instead')
+    click.echo('Warning: the `image` command is being deprecated, please use `make image` instead',
+               err=True)
     with load_config() as c:
         validate_instance(instance, c)
         bc.make_image(instance, c[instance])
@@ -57,7 +59,8 @@ def image(instance):
 @main.command()
 @click.argument('instance')
 def delete(instance):
-    click.echo('Warning: the `delete` command is being deprecated, please use `clean build` instead')
+    click.echo('Warning: the `delete` command is being deprecated, please use `clean build` instead',
+               err=True)
     bc.clean_build(instance)
 
 
@@ -83,13 +86,13 @@ def login(phase, instance):
         with load_config_v2() as c:
             validate_instance(instance, c)
             if c[instance][phase]['connection'] == 'winrm':
-                click.echo('Login unsupported for winrm connections')
+                click.echo('Login unsupported for winrm connections', err=True)
             bc.login(instance, c[instance][phase], phase)
     else:
         with load_config() as c:
             validate_instance(instance, c)
             if c[instance]['connection'] == 'winrm':
-                click.echo('Login unsupported for winrm connections')
+                click.echo('Login unsupported for winrm connections', err=True)
                 raise click.Abort()
             bc.login(instance, c[instance])
 
@@ -104,7 +107,7 @@ def info(attribute, instance):
             click.echo(json.dumps(c[instance], indent=2, separators=(',', ': ')))
         else:
             if attribute not in c[instance]:
-                click.echo('No such attribute {}'.format(attribute))
+                click.echo('No such attribute {}'.format(attribute), err=True)
                 raise click.Abort()
             else:
                 click.echo(c[instance][attribute])
@@ -137,7 +140,7 @@ def make_image(instance):
         try:
             bc.make_image(instance, c[instance]['build'])
         except bc.StateError as e:
-            click.echo(e)
+            click.echo(e, err=True)
             raise click.Abort()
 
 
@@ -151,7 +154,7 @@ def make_test(instance, verbosity):
         try:
             bc.make_test(instance, c[instance]['test'], verbosity)
         except bc.StateError as e:
-            click.echo(e)
+            click.echo(e, err=True)
             raise click.Abort()
 
 
@@ -179,7 +182,7 @@ def clean_image(instance):
 
 def validate_instance(instance, config):
     if instance not in config:
-        click.echo('No such instance {} configured'.format(instance))
+        click.echo('No such instance {} configured'.format(instance), err=True)
         raise click.Abort()
 
 
@@ -189,7 +192,7 @@ def load_config():
         c = bc.load_config()
         yield c
     except bc.ConfigurationError as e:
-        click.echo(e)
+        click.echo(e, err=True)
         raise click.Abort()
 
 
@@ -199,5 +202,5 @@ def load_config_v2():
         c = bc.load_config_v2()
         yield c
     except bc.ConfigurationError as e:
-        click.echo(e)
+        click.echo(e, err=True)
         raise click.Abort()
