@@ -304,7 +304,7 @@ def test_make_test():
             'Cannot run `make test` before `make image`'
         )
 
-    bc.make_image(instance, config[instance]['build'])
+    bc.make_image(instance, config[instance]['image'])
 
     reset_probes()
     bc.make_test(instance, config[instance]['test'], 1)

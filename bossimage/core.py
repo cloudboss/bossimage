@@ -861,21 +861,24 @@ def validate_v2(doc):
         }],
     }
     build = base.copy()
-    default_ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
     build.update({
         v.Required('source_ami'): str,
-        v.Optional('ami_name', default=default_ami_name): str,
         v.Optional('become', default=True): bool,
         v.Optional('extra_vars', default={}): dict,
     })
+    image = {
+        v.Optional('ami_name'): str,
+    }
     test = base.copy()
     test.update({
         v.Optional('playbook', default='tests/test.yml'): str
     })
     platform = base.copy()
+    default_ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
     platform.update({
         v.Required('name'): str,
         v.Required('build'): build,
+        v.Optional('image', default={'ami_name': default_ami_name}): image,
         v.Optional('test', default={'playbook': 'tests/test.yml'}): test,
     })
     profile = {
@@ -892,7 +895,7 @@ def validate_v2(doc):
 def transform_config(doc):
     validated = validate_v2(doc)
     transformed = {}
-    excluded_items = ('name', 'build', 'test')
+    excluded_items = ('name', 'build', 'image', 'test')
     for platform in validated['platforms']:
         for profile in validated['profiles']:
             instance = '{}-{}'.format(platform['name'], profile['name'])
@@ -905,6 +908,12 @@ def transform_config(doc):
             transformed[instance]['build'].update(platform['build'].copy())
             transformed[instance]['build'].update({
                 'extra_vars':  profile['extra_vars'].copy(),
+                'platform': platform['name'],
+                'profile': profile['name'],
+            })
+
+            transformed[instance]['image'] = platform['image'].copy()
+            transformed[instance]['image'].update({
                 'platform': platform['name'],
                 'profile': profile['name'],
             })
