@@ -266,7 +266,8 @@ def test_role_version():
         assert_equal(bc.role_version(), env_role_version)
     finally:
         os.chdir(cwd)
-        del(os.environ['BI_ROLE_VERSION'])
+        if 'BI_ROLE_VERSION' in os.environ:
+            del(os.environ['BI_ROLE_VERSION'])
 
 
 def test_make_build():
