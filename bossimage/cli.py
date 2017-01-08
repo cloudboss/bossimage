@@ -97,20 +97,40 @@ def login(phase, instance):
             bc.login(instance, c[instance])
 
 
+def find_nested_attr(config, attr):
+    """
+    Takes a config dictionary and an attribute string as input and tries to find the
+    attribute in the dictionary. The attribute may use dots to indicate levels of
+    depth within the dictionary.
+
+    Example:
+    find_nested_attr({'one': {'two': {'three': 3}}}, 'one.two.three')
+    --> 3
+    """
+    obj = config.copy()
+    for section in attr.split('.'):
+        obj = obj[section]
+    return obj
+
+
 @main.command()
 @click.option('-a', '--attribute')
 @click.argument('instance')
 def info(attribute, instance):
-    with load_config() as c:
-        validate_instance(instance, c)
-        if not attribute:
-            click.echo(json.dumps(c[instance], indent=2, separators=(',', ': ')))
-        else:
-            if attribute not in c[instance]:
-                click.echo('No such attribute {}'.format(attribute), err=True)
-                raise click.Abort()
-            else:
-                click.echo(c[instance][attribute])
+    try:
+        with load_config_v2() as c:
+            validate_instance(instance, c)
+    except:
+        with load_config() as c:
+            validate_instance(instance, c)
+    if not attribute:
+        click.echo(json.dumps(c[instance], indent=2, separators=(',', ': ')))
+    else:
+        try:
+            click.echo(find_nested_attr(c[instance], attribute))
+        except KeyError:
+            click.echo('No such attribute {}'.format(attribute), err=True)
+            raise click.Abort()
 
 
 @main.command()
