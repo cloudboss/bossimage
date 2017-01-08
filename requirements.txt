@@ -2,3 +2,4 @@ ansible==2.0.1.0
 boto3==1.2.5
 click==6.3
 voluptuous==0.8.8
+mock==2.0.0

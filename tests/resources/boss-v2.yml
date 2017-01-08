@@ -1,0 +1,40 @@
+defaults:
+  instance_type: t2.micro
+
+platforms:
+  - name: win-2012r2
+    instance_type: m3.medium
+    username: Administrator
+    connection: winrm
+    connection_timeout: 300
+    port: 5985
+    build:
+      become: false
+      source_ami: Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10
+    image:
+      ami_name: 'ami-00000000'
+    test:
+      port: 5986
+
+  - name: amz-2015092
+    build:
+      source_ami: amzn-ami-hvm-2015.09.2.x86_64-gp2
+    image:
+      ami_name: '%(role)s-%(profile)s-%(version)s-%(platform)s'
+    block_device_mappings:
+      - device_name: /dev/sdf
+        ebs:
+          volume_size: 100
+          volume_type: gp2
+          delete_on_termination: true
+    tags:
+      Name: hello
+      Description: A description
+
+profiles:
+  - name: default
+  - name: nginx
+    extra_vars:
+      packages:
+        - nginx
+        - tcpdump

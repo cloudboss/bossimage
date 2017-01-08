@@ -31,7 +31,6 @@ config = {
         'click',
         'pywinrm',
         'voluptuous',
-        'xmltodict',
     ],
     'packages': ['bossimage'],
     'package_data': {
