@@ -28,16 +28,25 @@ def teardown():
 
 
 def probe(func):
+    """
+    Decorator to wrap a function with the ability to be probed.
+    When the function is called, its name will be added to a list,
+    which is stored as an attribute on the probe function.
+    """
     def wrapper(*args, **kwargs):
-        if not getattr(probe, 'called', None):
-            probe.called = []
-        probe.called.append(func.__name__)
+        if func.__name__ in probe.watch:
+            probe.called.append(func.__name__)
         return func(*args, **kwargs)
     return wrapper
 
 
-def reset_probes():
+def reset_probes(watch=[]):
+    """
+    Clears the list of functions which have been probed. The `watch`
+    argument is a list of function names that should be watched for.
+    """
     probe.called = []
+    probe.watch = watch
 
 
 def create_working_dir():

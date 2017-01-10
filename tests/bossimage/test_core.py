@@ -274,12 +274,12 @@ def test_make_build():
     config = bc.load_config_v2('tests/resources/boss-v2.yml')
     instance = 'amz-2015092-default'
 
-    reset_probes()
+    reset_probes(['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
     bc.make_build(instance, config[instance]['build'], 1)
     assert_equal(probe.called, ['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
 
     # Ensure that a second run only runs ansible without creating new resources
-    reset_probes()
+    reset_probes(['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
     bc.make_build(instance, config[instance]['build'], 1)
     assert_equal(probe.called, ['run_ansible'])
 
@@ -307,11 +307,11 @@ def test_make_test():
 
     bc.make_image(instance, config[instance]['image'])
 
-    reset_probes()
+    reset_probes(['create_instance_v2', 'run_ansible'])
     bc.make_test(instance, config[instance]['test'], 1)
     assert_equal(probe.called, ['create_instance_v2', 'run_ansible'])
 
     # As with `build`, a second run should create no new resources
-    reset_probes()
+    reset_probes(['create_instance_v2', 'run_ansible'])
     bc.make_test(instance, config[instance]['test'], 1)
     assert_equal(probe.called, ['run_ansible'])
