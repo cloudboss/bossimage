@@ -331,6 +331,9 @@ def create_instance_v2(config, image_id, keyname):
     with Spinner('instance', 'to be running'):
         ec2_instance.wait_until_running()
 
+    if config['tags']:
+        tag_instance(config['tags'], ec2_instance)
+
     ec2_instance.reload()
     return ec2_instance
 
