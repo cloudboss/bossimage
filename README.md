@@ -379,6 +379,8 @@ ubuntu-16.10-default    Not created
 
 This builds an EC2 instance and runs the Ansible role on it. A unique ssh keypair is also created and assigned to the instance. This command is idempotent and may be run multiple times without creating a new instance each time. Subsequent runs will simply run the Ansible role again on the existing instance.
 
+If your Ansible role has a `requirements.yml` file, then the `ansible-galaxy` command will be used to install the dependencies listed there.
+
 #### bi make image
 
 ```
@@ -394,6 +396,8 @@ This builds an AMI from the instance created by running `bi make build`. This co
 ```
 
 This builds an EC2 instance from the AMI created by running `bi make image`, then runs the test playbook on it. This command will not run unless `bi make image` has run and written its state to `.boss/<instance>-state.yml`.
+
+As with `bi make build`, `ansible-galaxy` will be used to install any role dependencies used by the test playbook, but `ansible-galaxy` will look for them in `tests/requirements.yml`.
 
 #### bi clean build
 
