@@ -530,7 +530,7 @@ def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
         ANSIBLE_HOST_KEY_CHECKING='False',
     ))
 
-    ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', requirements]
+    ansible_galaxy_args = ['ansible-galaxy', 'install', '-f', '-r', requirements]
     if verbosity:
         ansible_galaxy_args.append('-' + 'v' * verbosity)
     ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
