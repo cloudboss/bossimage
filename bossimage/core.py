@@ -477,7 +477,7 @@ def make_build(instance, config, verbosity):
         write_playbook(files['playbook'], config)
 
     run_ansible(verbosity, files['inventory'], files['playbook'],
-                config['extra_vars'], 'requirements.txt')
+                config['extra_vars'], 'requirements.yml')
 
 
 def make_test(instance, config, verbosity):
