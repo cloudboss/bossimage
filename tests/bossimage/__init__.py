@@ -119,8 +119,8 @@ def mock_ec2():
 
     m = mock.Mock()
     m.create_key_pair = create_key_pair
-    m.create_tags = create_tags
-    m.create_instances = create_instances
+    m.create_tags = probe(create_tags)
+    m.create_instances = probe(create_instances)
     m.images.filter = images_filter
     m.Instance = Instance
     return m
