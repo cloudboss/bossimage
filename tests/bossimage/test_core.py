@@ -270,16 +270,30 @@ def test_role_version():
             del(os.environ['BI_ROLE_VERSION'])
 
 
+def test_create_instance_tags():
+    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+
+    # win-2012r2 config has no tags
+    reset_probes(['create_instances', 'create_tags'])
+    bc.create_instance_v2(config['win-2012r2-default']['build'], 'ami-00000000', 'mykey')
+    assert_equal(probe.called, ['create_instances'])
+
+    # amz-2015092 config has tags
+    reset_probes(['create_instances', 'create_tags'])
+    bc.create_instance_v2(config['amz-2015092-default']['build'], 'ami-00000000', 'mykey')
+    assert_equal(probe.called, ['create_instances', 'create_tags'])
+
+
 def test_make_build():
     config = bc.load_config_v2('tests/resources/boss-v2.yml')
     instance = 'amz-2015092-default'
 
-    reset_probes()
+    reset_probes(['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
     bc.make_build(instance, config[instance]['build'], 1)
     assert_equal(probe.called, ['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
 
     # Ensure that a second run only runs ansible without creating new resources
-    reset_probes()
+    reset_probes(['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
     bc.make_build(instance, config[instance]['build'], 1)
     assert_equal(probe.called, ['run_ansible'])
 
@@ -307,11 +321,11 @@ def test_make_test():
 
     bc.make_image(instance, config[instance]['image'])
 
-    reset_probes()
+    reset_probes(['create_instance_v2', 'run_ansible'])
     bc.make_test(instance, config[instance]['test'], 1)
     assert_equal(probe.called, ['create_instance_v2', 'run_ansible'])
 
     # As with `build`, a second run should create no new resources
-    reset_probes()
+    reset_probes(['create_instance_v2', 'run_ansible'])
     bc.make_test(instance, config[instance]['test'], 1)
     assert_equal(probe.called, ['run_ansible'])

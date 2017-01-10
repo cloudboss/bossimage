@@ -66,12 +66,10 @@ def delete(instance):
 
 @main.command('list')
 def lst():
-    try:
-        with load_config() as c:
-            statuses = bc.statuses(c)
-    except:
-        with load_config_v2() as c:
-            statuses = bc.statuses(c)
+    ensure_current()
+
+    with load_config_v2() as c:
+        statuses = bc.statuses(c)
     longest = sorted(len(status[0]) for status in statuses)[-1]
     for instance, created in statuses:
         status = 'Created' if created else 'Not created'
@@ -95,22 +93,6 @@ def login(phase, instance):
                 click.echo('Login unsupported for winrm connections', err=True)
                 raise click.Abort()
             bc.login(instance, c[instance])
-
-
-def find_nested_attr(config, attr):
-    """
-    Takes a config dictionary and an attribute string as input and tries to find the
-    attribute in the dictionary. The attribute may use dots to indicate levels of
-    depth within the dictionary.
-
-    Example:
-    find_nested_attr({'one': {'two': {'three': 3}}}, 'one.two.three')
-    --> 3
-    """
-    obj = config.copy()
-    for section in attr.split('.'):
-        obj = obj[section]
-    return obj
 
 
 @main.command()
@@ -203,6 +185,36 @@ def clean_image(instance):
 def validate_instance(instance, config):
     if instance not in config:
         click.echo('No such instance {} configured'.format(instance), err=True)
+        raise click.Abort()
+
+
+def find_nested_attr(config, attr):
+    """
+    Takes a config dictionary and an attribute string as input and tries to find the
+    attribute in the dictionary. The attribute may use dots to indicate levels of
+    depth within the dictionary.
+
+    Example:
+    find_nested_attr({'one': {'two': {'three': 3}}}, 'one.two.three')
+    --> 3
+    """
+    obj = config.copy()
+    for section in attr.split('.'):
+        obj = obj[section]
+    return obj
+
+
+def ensure_current():
+    url = 'https://github.com/cloudboss/bossimage'
+    is_old = False
+    try:
+        bc.load_config()
+        click.echo('Please update your .boss.yml. Instructions are on {}.'.format(url),
+                   err=True)
+        is_old = True
+    except:
+        pass
+    if is_old:
         raise click.Abort()
 
 

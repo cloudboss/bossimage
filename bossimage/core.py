@@ -331,6 +331,9 @@ def create_instance_v2(config, image_id, keyname):
     with Spinner('instance', 'to be running'):
         ec2_instance.wait_until_running()
 
+    if config['tags']:
+        tag_instance(config['tags'], ec2_instance)
+
     ec2_instance.reload()
     return ec2_instance
 
@@ -473,7 +476,8 @@ def make_build(instance, config, verbosity):
     if not os.path.exists(files['playbook']):
         write_playbook(files['playbook'], config)
 
-    run_ansible(verbosity, files['inventory'], files['playbook'], config['extra_vars'])
+    run_ansible(verbosity, files['inventory'], files['playbook'],
+                config['extra_vars'], 'requirements.txt')
 
 
 def make_test(instance, config, verbosity):
@@ -502,7 +506,8 @@ def make_test(instance, config, verbosity):
             config['connection'], time.time() + config['connection_timeout']
         )
 
-    run_ansible(verbosity, files['inventory'], config['playbook'], {})
+    run_ansible(verbosity, files['inventory'], config['playbook'], {},
+                'tests/requirements.yml')
 
 
 def ensure_inventory(instance, phase, config, keyfile, ident, ip):
@@ -518,14 +523,14 @@ def ensure_inventory(instance, phase, config, keyfile, ident, ip):
             )
 
 
-def run_ansible(verbosity, inventory, playbook, extra_vars):
+def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
     env = os.environ.copy()
     env.update(dict(
         ANSIBLE_ROLES_PATH='.boss/roles:..',
         ANSIBLE_HOST_KEY_CHECKING='False',
     ))
 
-    ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', 'requirements.yml']
+    ansible_galaxy_args = ['ansible-galaxy', 'install', '-f', '-r', requirements]
     if verbosity:
         ansible_galaxy_args.append('-' + 'v' * verbosity)
     ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
