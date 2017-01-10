@@ -476,8 +476,8 @@ def make_build(instance, config, verbosity):
     if not os.path.exists(files['playbook']):
         write_playbook(files['playbook'], config)
 
-    run_ansible(verbosity, files['inventory'], files['playbook'],
-                config['extra_vars'], 'requirements.yml')
+    return run_ansible(verbosity, files['inventory'], files['playbook'],
+                       config['extra_vars'], 'requirements.yml')
 
 
 def make_test(instance, config, verbosity):
@@ -506,8 +506,8 @@ def make_test(instance, config, verbosity):
             config['connection'], time.time() + config['connection_timeout']
         )
 
-    run_ansible(verbosity, files['inventory'], config['playbook'], {},
-                'tests/requirements.yml')
+    return run_ansible(verbosity, files['inventory'], config['playbook'], {},
+                       'tests/requirements.yml')
 
 
 def ensure_inventory(instance, phase, config, keyfile, ident, ip):
