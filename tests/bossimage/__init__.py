@@ -71,7 +71,7 @@ def ec2_connect():
     return mock_ec2()
 
 
-def run_ansible(a, b, c, d):
+def run_ansible(a, b, c, d, e):
     pass
 
 
