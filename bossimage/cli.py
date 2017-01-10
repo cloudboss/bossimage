@@ -66,12 +66,10 @@ def delete(instance):
 
 @main.command('list')
 def lst():
-    try:
-        with load_config() as c:
-            statuses = bc.statuses(c)
-    except:
-        with load_config_v2() as c:
-            statuses = bc.statuses(c)
+    ensure_current()
+
+    with load_config_v2() as c:
+        statuses = bc.statuses(c)
     longest = sorted(len(status[0]) for status in statuses)[-1]
     for instance, created in statuses:
         status = 'Created' if created else 'Not created'
@@ -204,6 +202,20 @@ def find_nested_attr(config, attr):
     for section in attr.split('.'):
         obj = obj[section]
     return obj
+
+
+def ensure_current():
+    url = 'https://github.com/cloudboss/bossimage'
+    is_old = False
+    try:
+        bc.load_config()
+        click.echo('Please update your .boss.yml. Instructions are on {}.'.format(url),
+                   err=True)
+        is_old = True
+    except:
+        pass
+    if is_old:
+        raise click.Abort()
 
 
 @contextlib.contextmanager
