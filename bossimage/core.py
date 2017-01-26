@@ -548,6 +548,9 @@ def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
 
 def make_image(instance, config, wait):
     with load_state(instance) as state:
+        if 'image' in state:
+            return
+
         if 'build' not in state:
             raise StateError('Cannot run `make image` before `make build`')
         ec2 = ec2_connect()
