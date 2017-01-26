@@ -566,9 +566,10 @@ def make_image(instance, config):
         image = ec2_instance.create_image(Name=image_name)
         print('Created image {} with name {}'.format(image.id, image_name))
 
-        with Spinner('image'):
-            wait_for_image(image)
         state['image'] = {'id': image.id}
+
+    with Spinner('image'):
+        wait_for_image(image)
 
 
 def clean_build(instance):
