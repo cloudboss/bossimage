@@ -546,7 +546,7 @@ def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
     return ansible_playbook.wait()
 
 
-def make_image(instance, config):
+def make_image(instance, config, wait):
     with load_state(instance) as state:
         if 'build' not in state:
             raise StateError('Cannot run `make image` before `make build`')
@@ -568,8 +568,9 @@ def make_image(instance, config):
 
         state['image'] = {'id': image.id}
 
-    with Spinner('image'):
-        wait_for_image(image)
+    if wait:
+        with Spinner('image'):
+            wait_for_image(image)
 
 
 def clean_build(instance):

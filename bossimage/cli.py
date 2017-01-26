@@ -53,7 +53,7 @@ def image(instance):
                err=True)
     with load_config() as c:
         validate_instance(instance, c)
-        bc.make_image(instance, c[instance])
+        bc.make_image(instance, c[instance], True)
 
 
 @main.command()
@@ -136,11 +136,13 @@ def make_build(instance, verbosity):
 
 @make.command('image')
 @click.argument('instance')
-def make_image(instance):
+@click.option('-w', '--wait/--no-wait', default=True,
+              help='Wait for image to be available')
+def make_image(instance, wait):
     with load_config_v2() as c:
         validate_instance(instance, c)
         try:
-            bc.make_image(instance, c[instance]['image'])
+            bc.make_image(instance, c[instance]['image'], wait)
         except bc.StateError as e:
             click.echo(e, err=True)
             raise click.Abort()
