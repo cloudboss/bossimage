@@ -546,8 +546,11 @@ def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
     return ansible_playbook.wait()
 
 
-def make_image(instance, config):
+def make_image(instance, config, wait):
     with load_state(instance) as state:
+        if 'image' in state:
+            return
+
         if 'build' not in state:
             raise StateError('Cannot run `make image` before `make build`')
         ec2 = ec2_connect()
@@ -566,9 +569,11 @@ def make_image(instance, config):
         image = ec2_instance.create_image(Name=image_name)
         print('Created image {} with name {}'.format(image.id, image_name))
 
+        state['image'] = {'id': image.id}
+
+    if wait:
         with Spinner('image'):
             wait_for_image(image)
-        state['image'] = {'id': image.id}
 
 
 def clean_build(instance):

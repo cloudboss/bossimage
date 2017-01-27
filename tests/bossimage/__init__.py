@@ -13,14 +13,13 @@ tempdir = tempfile.mkdtemp()
 def setup():
     bc.create_working_dir = create_working_dir
     bc.instance_files = instance_files
-    bc.ec2_connect = ec2_connect
+    bc.ec2_connect = probe(ec2_connect)
     bc.wait_for_connection = wait_for_connection
-    bc.run_ansible = run_ansible
-
+    bc.wait_for_image = probe(wait_for_image)
+    bc.run_ansible = probe(run_ansible)
     bc.create_keypair = probe(bc.create_keypair)
     bc.create_instance_v2 = probe(bc.create_instance_v2)
     bc.write_playbook = probe(bc.write_playbook)
-    bc.run_ansible = probe(bc.run_ansible)
 
 
 def teardown():
@@ -54,6 +53,10 @@ def create_working_dir():
 
 
 def wait_for_connection(a, b, c, d, e, f):
+    time.sleep(1)
+
+
+def wait_for_image(a):
     time.sleep(1)
 
 

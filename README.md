@@ -374,30 +374,36 @@ ubuntu-16.10-default    Not created
 #### bi make build
 
 ```
-> bi make build <instance>
+> bi make build <instance> [-v|--verbosity]
 ```
 
 This builds an EC2 instance and runs the Ansible role on it. A unique ssh keypair is also created and assigned to the instance. This command is idempotent and may be run multiple times without creating a new instance each time. Subsequent runs will simply run the Ansible role again on the existing instance.
 
 If your Ansible role has a `requirements.yml` file, then the `ansible-galaxy` command will be used to install the dependencies listed there.
 
+The `-v`, or `--verbosity` option gets passed through to Ansible. It may be repeated up to four times to increase the Ansible's verbosity.
+
 #### bi make image
 
 ```
-> bi make image <instance>
+> bi make image <instance> [--no-wait]
 ```
 
 This builds an AMI from the instance created by running `bi make build`. This command will not run unless `bi make build` has run and written its state to `.boss/<instance>-state.yml`.
 
+By default this command will complete when the image is available. You may pass the option `--no-wait` to this command so that it does not wait for the image to be available.
+
 #### bi make test
 
 ```
-> bi make test <instance>
+> bi make test <instance> [-v|--verbosity]
 ```
 
 This builds an EC2 instance from the AMI created by running `bi make image`, then runs the test playbook on it. This command will not run unless `bi make image` has run and written its state to `.boss/<instance>-state.yml`.
 
 As with `bi make build`, `ansible-galaxy` will be used to install any role dependencies used by the test playbook, but `ansible-galaxy` will look for them in `tests/requirements.yml`.
+
+The `-v`, or `--verbosity` option gets passed through to Ansible. It may be repeated up to four times to increase the Ansible's verbosity.
 
 #### bi clean build
 
