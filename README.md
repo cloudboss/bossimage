@@ -381,7 +381,7 @@ This builds an EC2 instance and runs the Ansible role on it. A unique ssh keypai
 
 If your Ansible role has a `requirements.yml` file, then the `ansible-galaxy` command will be used to install the dependencies listed there.
 
-The `-v`, or `--verbosity` option gets passed through to Ansible. It may be repeated up to four times to increase the Ansible's verbosity.
+The `-v`, or `--verbosity` option, gets passed through to Ansible. It may be repeated up to four times to increase Ansible's verbosity.
 
 #### bi make image
 
@@ -403,7 +403,7 @@ This builds an EC2 instance from the AMI created by running `bi make image`, the
 
 As with `bi make build`, `ansible-galaxy` will be used to install any role dependencies used by the test playbook, but `ansible-galaxy` will look for them in `tests/requirements.yml`.
 
-The `-v`, or `--verbosity` option gets passed through to Ansible. It may be repeated up to four times to increase the Ansible's verbosity.
+The `-v`, or `--verbosity` option, gets passed through to Ansible. It may be repeated up to four times to increase Ansible's verbosity.
 
 #### bi clean build
 
