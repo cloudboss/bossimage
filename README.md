@@ -384,10 +384,12 @@ If your Ansible role has a `requirements.yml` file, then the `ansible-galaxy` co
 #### bi make image
 
 ```
-> bi make image <instance>
+> bi make image <instance> [--no-wait]
 ```
 
 This builds an AMI from the instance created by running `bi make build`. This command will not run unless `bi make build` has run and written its state to `.boss/<instance>-state.yml`.
+
+By default this command will complete when the image is available. You may pass the option `--no-wait` to this command so that it does not wait for the image to be available.
 
 #### bi make test
 
