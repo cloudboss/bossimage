@@ -319,7 +319,7 @@ def test_make_test():
             'Cannot run `make test` before `make image`'
         )
 
-    bc.make_image(instance, config[instance]['image'])
+    bc.make_image(instance, config[instance]['image'], True)
 
     reset_probes(['create_instance_v2', 'run_ansible'])
     bc.make_test(instance, config[instance]['test'], 1)
