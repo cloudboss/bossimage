@@ -329,3 +329,46 @@ def test_make_test():
     reset_probes(['create_instance_v2', 'run_ansible'])
     bc.make_test(instance, config[instance]['test'], 1)
     assert_equal(probe.called, ['run_ansible'])
+
+    for f in bc.instance_files(instance).values():
+        os.unlink(f)
+
+
+def test_make_image_wait():
+    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    instance = 'amz-2015092-default'
+    wait = True
+
+    bc.make_build(instance, config[instance]['build'], 1)
+
+    reset_probes(['ec2_connect', 'wait_for_image'])
+    bc.make_image(instance, config[instance]['image'], wait)
+    assert_equal(probe.called, ['ec2_connect', 'wait_for_image'])
+
+    reset_probes(['ec2_connect', 'wait_for_image'])
+    bc.make_image(instance, config[instance]['image'], wait)
+    assert_equal(probe.called, [])
+
+    wait = False
+    reset_probes(['ec2_connect', 'wait_for_image'])
+    bc.make_image(instance, config[instance]['image'], wait)
+    assert_equal(probe.called, [])
+
+    for f in bc.instance_files(instance).values():
+        os.unlink(f)
+
+
+def test_make_image_no_wait():
+    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    instance = 'amz-2015092-default'
+    wait = False
+
+    bc.make_build(instance, config[instance]['build'], 1)
+
+    reset_probes(['ec2_connect', 'wait_for_image'])
+    bc.make_image(instance, config[instance]['image'], wait)
+    assert_equal(probe.called, ['ec2_connect'])
+
+    reset_probes(['ec2_connect', 'wait_for_image'])
+    bc.make_image(instance, config[instance]['image'], wait)
+    assert_equal(probe.called, [])
