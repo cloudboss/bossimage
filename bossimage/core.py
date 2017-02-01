@@ -299,8 +299,8 @@ def get_windows_password(ec2_instance, keyfile):
     password_file = tempfile.mktemp(dir='.boss')
     with open(password_file, 'w') as f:
         f.write(base64.decodestring(encrypted_password))
-        password = decrypt_password(password_file, keyfile)
-        os.unlink(password_file)
+    password = decrypt_password(password_file, keyfile)
+    os.unlink(password_file)
     return password
 
 
