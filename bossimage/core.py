@@ -640,7 +640,7 @@ def delete_files(files):
 
 def statuses(config):
     def exists(instance):
-        return os.path.exists('.boss/{}.yml'.format(instance))
+        return os.path.exists('.boss/{}-state.yml'.format(instance))
     return [(instance, exists(instance)) for instance in config.keys()]
 
 
