@@ -423,11 +423,12 @@ def run(instance, config, verbosity):
 
     env.update(dict(ANSIBLE_ROLES_PATH='.boss/roles:..'))
 
-    ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', 'requirements.yml']
-    if verbosity:
-        ansible_galaxy_args.append('-' + 'v' * verbosity)
-    ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
-    ansible_galaxy.wait()
+    if os.path.exists('requirements.yml'):
+        ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', 'requirements.yml']
+        if verbosity:
+            ansible_galaxy_args.append('-' + 'v' * verbosity)
+        ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
+        ansible_galaxy.wait()
 
     env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
 
@@ -530,11 +531,12 @@ def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
         ANSIBLE_HOST_KEY_CHECKING='False',
     ))
 
-    ansible_galaxy_args = ['ansible-galaxy', 'install', '-f', '-r', requirements]
-    if verbosity:
-        ansible_galaxy_args.append('-' + 'v' * verbosity)
-    ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
-    ansible_galaxy.wait()
+    if os.path.exists(requirements):
+        ansible_galaxy_args = ['ansible-galaxy', 'install', '-f', '-r', requirements]
+        if verbosity:
+            ansible_galaxy_args.append('-' + 'v' * verbosity)
+        ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
+        ansible_galaxy.wait()
 
     ansible_playbook_args = ['ansible-playbook', '-i', inventory]
     if verbosity:
