@@ -19,12 +19,9 @@
 # THE SOFTWARE.
 import contextlib
 import json
-import os
 import sys
 
 import click
-import voluptuous as v
-import yaml
 
 import bossimage as b
 import bossimage.core as bc
@@ -192,9 +189,9 @@ def validate_instance(instance, config):
 
 def find_nested_attr(config, attr):
     """
-    Takes a config dictionary and an attribute string as input and tries to find the
-    attribute in the dictionary. The attribute may use dots to indicate levels of
-    depth within the dictionary.
+    Takes a config dictionary and an attribute string as input and tries to
+    find the attribute in the dictionary. The attribute may use dots to
+    indicate levels of depth within the dictionary.
 
     Example:
     find_nested_attr({'one': {'two': {'three': 3}}}, 'one.two.three')
@@ -211,8 +208,9 @@ def ensure_current():
     is_old = False
     try:
         bc.load_config()
-        click.echo('Please update your .boss.yml. Instructions are on {}.'.format(url),
-                   err=True)
+        click.echo(
+            'Please update your .boss.yml. Instructions are on {}.'.format(url),
+            err=True)
         is_old = True
     except:
         pass

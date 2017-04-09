@@ -20,13 +20,12 @@
 from __future__ import print_function
 import base64
 import contextlib
-import functools as f
+import functools
 import itertools
 import json
 import os
 import random
 import re
-import shutil
 import socket
 import string
 import subprocess
@@ -43,16 +42,20 @@ import pkg_resources as pr
 import voluptuous as v
 
 
-class ConnectionTimeout(Exception): pass
+class ConnectionTimeout(Exception):
+    pass
 
 
-class ConfigurationError(Exception): pass
+class ConfigurationError(Exception):
+    pass
 
 
-class StateError(Exception): pass
+class StateError(Exception):
+    pass
 
 
-class ItemNotFound(Exception): pass
+class ItemNotFound(Exception):
+    pass
 
 
 class Spinner(t.Thread):
@@ -84,7 +87,7 @@ class Spinner(t.Thread):
 def cached(func):
     cache = {}
 
-    @f.wraps(func)
+    @functools.wraps(func)
     def wrapper(*args, **kwargs):
         key = func.__name__ + str(sorted(args)) + str(sorted(kwargs.items()))
         if key not in cache:
@@ -107,7 +110,7 @@ def camelify(spec):
     if type(spec) == list:
         return [camelify(m) for m in spec]
     elif type(spec) == dict:
-        return { snake_to_camel(k): camelify(v) for k, v in spec.items() }
+        return {snake_to_camel(k): camelify(v) for k, v in spec.items()}
     else:
         return spec
 
@@ -229,7 +232,7 @@ def parse_inventory(fdesc):
 
 
 def inventory_entry(ip, keyfile, username, password, port, connection):
-    return  '{} ' \
+    entry = '{} ' \
         'ansible_ssh_private_key_file={} ' \
         'ansible_user={} ' \
         'ansible_password={} ' \
@@ -237,6 +240,7 @@ def inventory_entry(ip, keyfile, username, password, port, connection):
         'ansible_connection={}'.format(
             ip, keyfile, username, password, port, connection
         )
+    return entry
 
 
 @contextlib.contextmanager
@@ -252,7 +256,9 @@ def load_inventory(instance):
 
 
 def write_inventory(path, inventory):
-    inventory_string = '\n'.join(['[{}]\n{}'.format(grp, host) for grp, host in inventory.items()])
+    template = '[{}]\n{}'
+    inventory_string = '\n'.join(template.format(grp, host)
+                                 for grp, host in inventory.items())
     with open(path, 'w') as f:
         f.write(inventory_string)
     os.chmod(path, 0600)
@@ -389,7 +395,8 @@ def wait_for_connection(addr, port, inventory, group, connection, end):
 
     while(True):
         if time.time() > end:
-            raise ConnectionTimeout('Timeout while connecting to {}:{}'.format(addr, port))
+            message = 'Timeout while connecting to {}:{}'.format(addr, port)
+            raise ConnectionTimeout(message)
         try:
             # First check if port is open.
             socket.create_connection((addr, port), 1)
@@ -398,16 +405,20 @@ def wait_for_connection(addr, port, inventory, group, connection, end):
             # Now check if we can actually log in.
             with open('/dev/null', 'wb') as devnull:
                 ret = subprocess.call([
-                    'ansible', group, '-i', inventory, '-m', 'raw', '-a', 'exit'
+                    'ansible', group,
+                    '-i', inventory, '-m', 'raw', '-a', 'exit'
                 ], stderr=devnull, stdout=devnull, env=env)
-                if ret == 0: break
-                else: raise
+                if ret == 0:
+                    break
+                else:
+                    raise
         except:
             time.sleep(15)
 
 
 def run(instance, config, verbosity):
-    if not os.path.exists('.boss'): os.mkdir('.boss')
+    if not os.path.exists('.boss'):
+        os.mkdir('.boss')
 
     files = instance_files(instance)
 
@@ -417,14 +428,17 @@ def run(instance, config, verbosity):
     port = config['port']
     end = time.time() + config['connection_timeout']
     with Spinner('connection to {}:{}'.format(ip, port)):
-        wait_for_connection(ip, port, files['inventory'], 'build', config['connection'], end)
+        wait_for_connection(
+            ip, port, files['inventory'], 'build', config['connection'], end)
 
     env = os.environ.copy()
 
     env.update(dict(ANSIBLE_ROLES_PATH='.boss/roles:..'))
 
     if os.path.exists('requirements.yml'):
-        ansible_galaxy_args = ['ansible-galaxy', 'install', '-r', 'requirements.yml']
+        ansible_galaxy_args = [
+            'ansible-galaxy', 'install', '-r', 'requirements.yml'
+        ]
         if verbosity:
             ansible_galaxy_args.append('-' + 'v' * verbosity)
         ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
@@ -436,7 +450,9 @@ def run(instance, config, verbosity):
     if verbosity:
         ansible_playbook_args.append('-' + 'v' * verbosity)
     if config['extra_vars']:
-        ansible_playbook_args += ['--extra-vars', json.dumps(config['extra_vars'])]
+        ansible_playbook_args += [
+            '--extra-vars', json.dumps(config['extra_vars'])
+        ]
     ansible_playbook_args.append(files['playbook'])
     ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
     return ansible_playbook.wait()
@@ -447,11 +463,12 @@ def make_build(instance, config, verbosity):
         os.mkdir('.boss')
 
     files = instance_files(instance)
+    keyfile = files['keyfile']
 
     with load_state(instance) as state:
         if 'keyname' not in state:
             keyname = gen_keyname()
-            create_keypair(keyname, files['keyfile'])
+            create_keypair(keyname, keyfile)
             state['keyname'] = keyname
 
     with load_state(instance) as state:
@@ -459,16 +476,21 @@ def make_build(instance, config, verbosity):
             ec2_instance = create_instance_v2(
                 config, ami_id_for(config['source_ami']), state['keyname']
             )
-            public_ip = config['associate_public_ip_address']
-            ip_address = ec2_instance.public_ip_address if public_ip else ec2_instance.private_ip_address
+            if config['associate_public_ip_address']:
+                ip_address = ec2_instance.public_ip_address
+            else:
+                ip_address = ec2_instance.private_ip_address
             state['build'] = {
                 'id': ec2_instance.id,
                 'ip': ip_address,
             }
 
-    ensure_inventory(instance, 'build', config, files['keyfile'], state['build']['id'], state['build']['ip'])
+    ensure_inventory(
+        instance, 'build', config, keyfile,
+        state['build']['id'], state['build']['ip'])
 
-    with Spinner('connection to {}:{}'.format(state['build']['ip'], config['port'])):
+    with Spinner('connection to {}:{}'.format(
+            state['build']['ip'], config['port'])):
         wait_for_connection(
             state['build']['ip'], config['port'], files['inventory'], 'build',
             config['connection'], time.time() + config['connection_timeout']
@@ -490,8 +512,10 @@ def make_test(instance, config, verbosity):
             ec2_instance = create_instance_v2(
                 config, state['image']['id'], state['keyname']
             )
-            public_ip = config['associate_public_ip_address']
-            ip_address = ec2_instance.public_ip_address if public_ip else ec2_instance.private_ip_address
+            if config['associate_public_ip_address']:
+                ip_address = ec2_instance.public_ip_address
+            else:
+                ip_address = ec2_instance.private_ip_address
             state['test'] = {
                 'id': ec2_instance.id,
                 'ip': ip_address,
@@ -499,9 +523,12 @@ def make_test(instance, config, verbosity):
 
     files = instance_files(instance)
 
-    ensure_inventory(instance, 'test', config, files['keyfile'], state['test']['id'], state['test']['ip'])
+    ensure_inventory(
+        instance, 'test', config, files['keyfile'],
+        state['test']['id'], state['test']['ip'])
 
-    with Spinner('connection to {}:{}'.format(state['test']['ip'], config['port'])):
+    with Spinner('connection to {}:{}'.format(
+            state['test']['ip'], config['port'])):
         wait_for_connection(
             state['test']['ip'], config['port'], files['inventory'], 'test',
             config['connection'], time.time() + config['connection_timeout']
@@ -515,12 +542,14 @@ def ensure_inventory(instance, phase, config, keyfile, ident, ip):
     with load_inventory(instance) as inventory:
         if phase not in inventory:
             ec2_instance = ec2_connect().Instance(id=ident)
-            connection = config['connection']
-            password = get_windows_password(ec2_instance, keyfile) if connection == 'winrm' else None
+            if config['connection'] == 'winrm':
+                password = get_windows_password(ec2_instance, keyfile)
+            else:
+                password = None
 
             inventory[phase] = inventory_entry(
                 ip, keyfile, config['username'],
-                password, config['port'], connection
+                password, config['port'], config['connection']
             )
 
 
@@ -532,7 +561,9 @@ def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
     ))
 
     if os.path.exists(requirements):
-        ansible_galaxy_args = ['ansible-galaxy', 'install', '-f', '-r', requirements]
+        ansible_galaxy_args = [
+            'ansible-galaxy', 'install', '-f', '-r', requirements
+        ]
         if verbosity:
             ansible_galaxy_args.append('-' + 'v' * verbosity)
         ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
@@ -680,7 +711,8 @@ def load_state(instance):
 
 
 def resource_id_for(collection, collection_desc, name, prefix, flt):
-    if name.startswith(prefix): return name
+    if name.startswith(prefix):
+        return name
     item = list(collection.filter(Filters=[flt]))
     if item:
         return item[0].id
@@ -693,7 +725,7 @@ def ami_id_for(name):
     ec2 = ec2_connect()
     return resource_id_for(
         ec2.images, 'image', name, 'ami-',
-        { 'Name': 'name', 'Values': [name] }
+        {'Name': 'name', 'Values': [name]}
     )
 
 
@@ -701,7 +733,7 @@ def sg_id_for(name):
     ec2 = ec2_connect()
     return resource_id_for(
         ec2.security_groups, 'security group', name, 'sg-',
-        { 'Name': 'group-name', 'Values': [name] }
+        {'Name': 'group-name', 'Values': [name]}
     )
 
 
@@ -709,7 +741,7 @@ def subnet_id_for(name):
     ec2 = ec2_connect()
     return resource_id_for(
         ec2.subnets, 'subnet ', name, 'subnet-',
-        { 'Name': 'tag:Name', 'Values': [name] }
+        {'Name': 'tag:Name', 'Values': [name]}
     )
 
 
@@ -728,13 +760,17 @@ def load_config(path='.boss.yml'):
             c['defaults'] = {}
         return post_validate(merge_config(c))
     except j.TemplateNotFound:
-        raise ConfigurationError('Error loading {}: not found'.format(path))
+        error = 'Error loading {}: not found'.format(path)
+        raise ConfigurationError(error)
     except j.TemplateSyntaxError as e:
-        raise ConfigurationError('Error loading {}: {}, line {}'.format(path, e, e.lineno))
+        error = 'Error loading {}: {}, line {}'.format(path, e, e.lineno)
+        raise ConfigurationError(error)
     except IOError as e:
-        raise ConfigurationError('Error loading {}: {}'.format(path, e.strerror))
+        error = 'Error loading {}: {}'.format(path, e.strerror)
+        raise ConfigurationError(error)
     except v.Invalid as e:
-        raise ConfigurationError('Error validating {}: {}'.format(path, e))
+        error = 'Error validating {}: {}'.format(path, e)
+        raise ConfigurationError(error)
 
 
 def load_config_v2(path='.boss.yml'):
@@ -745,13 +781,17 @@ def load_config_v2(path='.boss.yml'):
         doc = yaml.load(yml)
         return transform_config(doc)
     except j.TemplateNotFound:
-        raise ConfigurationError('Error loading {}: not found'.format(path))
+        error = 'Error loading {}: not found'.format(path)
+        raise ConfigurationError(error)
     except j.TemplateSyntaxError as e:
-        raise ConfigurationError('Error loading {}: {}, line {}'.format(path, e, e.lineno))
+        error = 'Error loading {}: {}, line {}'.format(path, e, e.lineno)
+        raise ConfigurationError(error)
     except IOError as e:
-        raise ConfigurationError('Error loading {}: {}'.format(path, e.strerror))
+        error = 'Error loading {}: {}'.format(path, e.strerror)
+        raise ConfigurationError(error)
     except v.Invalid as e:
-        raise ConfigurationError('Error validating {}: {}'.format(path, e))
+        error = 'Error validating {}: {}'.format(path, e)
+        raise ConfigurationError(error)
 
 
 def merge_config(c):
@@ -778,7 +818,8 @@ def invalid(kind, item):
 
 
 def re_validator(pat, s, kind):
-    if not re.match(pat, s): raise invalid(kind, s)
+    if not re.match(pat, s):
+        raise invalid(kind, s)
     return s
 
 
@@ -795,7 +836,8 @@ def is_virtual_name(s):
 
 
 def is_volume_type(s):
-    if s not in ('gp2', 'io1', 'standard'): raise invalid('volume_type', s)
+    if s not in ('gp2', 'io1', 'standard'):
+        raise invalid('volume_type', s)
     return s
 
 
@@ -805,7 +847,7 @@ def pre_merge_schema():
         'extra_vars': {}
     }]
     return v.Schema({
-        v.Optional('driver', default={}): { v.Extra: object },
+        v.Optional('driver', default={}): {v.Extra: object},
         v.Required('platforms'): [{
             v.Required('name'): str,
         }],
@@ -886,11 +928,11 @@ def validate_v2(doc):
         v.Optional('playbook', default='tests/test.yml'): str
     })
     platform = base.copy()
-    default_ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
+    ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
     platform.update({
         v.Required('name'): str,
         v.Required('build'): build,
-        v.Optional('image', default={'ami_name': default_ami_name}): image,
+        v.Optional('image', default={'ami_name': ami_name}): image,
         v.Optional('test', default={'playbook': 'tests/test.yml'}): test,
     })
     profile = {
@@ -900,7 +942,9 @@ def validate_v2(doc):
     return v.Schema({
         v.Optional('defaults', default={}): defaults,
         v.Required('platforms'): [platform],
-        v.Optional('profiles', default=[{'name': 'default', 'extra_vars': {}}]): [profile],
+        v.Optional('profiles', default=[{
+            'name': 'default', 'extra_vars': {}
+        }]): [profile],
     })(doc)
 
 
@@ -942,7 +986,7 @@ def transform_config(doc):
 
 
 def post_merge_schema():
-    default_ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
+    ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
     return v.Schema({
         str: {
             'platform': str,
@@ -952,7 +996,7 @@ def post_merge_schema():
             v.Optional('extra_vars', default={}): dict,
             v.Optional('username', default='ec2-user'): str,
             v.Optional('become', default=True): bool,
-            v.Optional('ami_name', default=default_ami_name): str,
+            v.Optional('ami_name', default=ami_name): str,
             v.Optional('connection', default='ssh'): v.Or('ssh', 'winrm'),
             v.Optional('connection_timeout', default=600): int,
             v.Optional('port', default=22): int,
