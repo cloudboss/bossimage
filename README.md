@@ -268,6 +268,10 @@ The `defaults` section may contain the following variables.
 
  The security groups that are associated with the instance.
 
+* `iam_instance_profile` - type _string_
+
+ The name of the IAM instance profile to assign to the instance.
+
 * `tags` - type _map_ of _string_ to _string_, default `{}`
 
  A map of key/value pairs to be used for tagging the instance.

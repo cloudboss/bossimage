@@ -1,4 +1,4 @@
-# Copyright 2016 Joseph Wright <rjosephwright@gmail.com>
+# Copyright 2017 Joseph Wright <rjosephwright@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -330,6 +330,10 @@ def create_instance_v2(config, image_id, keyname):
     if config['security_groups']:
         sg_ids = [sg_id_for(name) for name in config['security_groups']]
         instance_params['NetworkInterfaces'][0]['Groups'] = sg_ids
+    if config['iam_instance_profile']:
+        instance_params['IamInstanceProfile'] = {
+            'Name': config['iam_instance_profile']
+        }
 
     (ec2_instance,) = ec2_connect().create_instances(**instance_params)
     print('Created instance {}'.format(ec2_instance.id))
@@ -867,6 +871,7 @@ def validate_v2(doc):
         v.Optional('associate_public_ip_address'): bool,
         v.Optional('subnet'): str,
         v.Optional('security_groups'): [str],
+        v.Optional('iam_instance_profile'): str,
         v.Optional('tags'): {str: str},
         v.Optional('user_data'): v.Or(
             str,
@@ -895,6 +900,7 @@ def validate_v2(doc):
         v.Optional('associate_public_ip_address', default=True): bool,
         v.Optional('subnet', default=''): str,
         v.Optional('security_groups', default=[]): [str],
+        v.Optional('iam_instance_profile', default=''): str,
         v.Optional('tags', default={}): {str: str},
         v.Optional('user_data', default=''): v.Or(
             str,
