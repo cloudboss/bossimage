@@ -89,7 +89,8 @@ def mock_ec2():
         pass
 
     def create_instances(ImageId='', InstanceType='', MinCount='', MaxCount='',
-        KeyName='', NetworkInterfaces=[], BlockDeviceMappings=[], UserData=''):
+                         KeyName='', NetworkInterfaces=[], BlockDeviceMappings=[],
+                         UserData='', IamInstanceProfile=''):
         instance = mock.Mock()
         instance.id = 'i-00000001'
         instance.private_ip_address = '10.20.30.40'
