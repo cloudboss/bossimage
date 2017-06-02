@@ -437,11 +437,15 @@ def run(instance, config, verbosity):
 
     env = os.environ.copy()
 
-    env.update(dict(ANSIBLE_ROLES_PATH='.boss/roles:..'))
+    roles_path = '.boss/roles'
+
+    env.update(dict(ANSIBLE_ROLES_PATH='{}:..'.format(roles_path)))
 
     if os.path.exists('requirements.yml'):
         ansible_galaxy_args = [
-            'ansible-galaxy', 'install', '-r', 'requirements.yml'
+            'ansible-galaxy', 'install',
+            '-r', 'requirements.yml',
+            '-p', roles_path,
         ]
         if verbosity:
             ansible_galaxy_args.append('-' + 'v' * verbosity)
@@ -558,15 +562,19 @@ def ensure_inventory(instance, phase, config, keyfile, ident, ip):
 
 
 def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
+    roles_path = '.boss/roles'
+
     env = os.environ.copy()
     env.update(dict(
-        ANSIBLE_ROLES_PATH='.boss/roles:..',
+        ANSIBLE_ROLES_PATH='{}:..'.format(roles_path),
         ANSIBLE_HOST_KEY_CHECKING='False',
     ))
 
     if os.path.exists(requirements):
         ansible_galaxy_args = [
-            'ansible-galaxy', 'install', '-f', '-r', requirements
+            'ansible-galaxy', 'install',
+            '-r', 'requirements.yml',
+            '-p', roles_path,
         ]
         if verbosity:
             ansible_galaxy_args.append('-' + 'v' * verbosity)
