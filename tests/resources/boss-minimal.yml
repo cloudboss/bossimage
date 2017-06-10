@@ -1,0 +1,5 @@
+platforms:
+  - name: amz-2015092
+    instance_type: t2.micro
+    build:
+      source_ami: amzn-ami-hvm-2015.09.2.x86_64-gp2
