@@ -100,6 +100,56 @@ system_info:
     assert_equal(bc.user_data(centos_7), '')
 
 
+def test_load_config_minimal():
+    c = bc.load_config_v2('tests/resources/boss-minimal.yml')
+    expected_transformation = {
+        'amz-2015092-default': {
+            'platform': 'amz-2015092',
+            'profile': 'default',
+            'build': {
+                'associate_public_ip_address': True,
+                'become': True,
+                'block_device_mappings': [],
+                'connection': 'ssh',
+                'connection_timeout': 600,
+                'extra_vars': {},
+                'iam_instance_profile': '',
+                'instance_type': 't2.micro',
+                'platform': 'amz-2015092',
+                'port': 22,
+                'profile': 'default',
+                'security_groups': [],
+                'source_ami': 'amzn-ami-hvm-2015.09.2.x86_64-gp2',
+                'subnet': '',
+                'tags': {},
+                'user_data': '',
+                'username': 'ec2-user',
+            },
+            'test': {
+                'associate_public_ip_address': True,
+                'block_device_mappings': [],
+                'connection': 'ssh',
+                'connection_timeout': 600,
+                'iam_instance_profile': '',
+                'instance_type': 't2.micro',
+                'playbook': 'tests/test.yml',
+                'port': 22,
+                'security_groups': [],
+                'subnet': '',
+                'tags': {},
+                'user_data': '',
+                'username': 'ec2-user',
+            },
+            'image': {
+                'ami_name': '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s',
+                'platform': 'amz-2015092',
+                'profile': 'default',
+            },
+        },
+    }
+    assert_equal(c, expected_transformation)
+
+
 def test_load_config_not_found():
     nosuchfile = bc.random_string(100)
 

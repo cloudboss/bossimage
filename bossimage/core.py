@@ -963,6 +963,7 @@ def validate_v2(doc):
 
 
 def transform_config(doc):
+    doc.setdefault('defaults', {})
     validated = validate_v2(doc)
     transformed = {}
     excluded_items = ('name', 'build', 'image', 'test')
