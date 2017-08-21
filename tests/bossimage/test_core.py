@@ -1,12 +1,8 @@
 import os
-import tempfile
 import StringIO
 
-import yaml
 from nose.tools import assert_equal, assert_raises
-from voluptuous import MultipleInvalid, TypeInvalid
 
-import bossimage.cli as cli
 import bossimage.core as bc
 from tests.bossimage import probe, reset_probes, tempdir
 
