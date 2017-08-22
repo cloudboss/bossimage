@@ -31,40 +31,8 @@ import bossimage.core as bc
 def main(): pass
 
 
-@main.command()
-@click.argument('instance')
-@click.option('-v', '--verbosity', count=True,
-              help='Verbosity, may be repeated up to 4 times')
-def run(instance, verbosity):
-    click.echo('Warning: the `run` command is being deprecated, please use `make build` instead',
-               err=True)
-    with load_config() as c:
-        validate_instance(instance, c)
-        sys.exit(bc.run(instance, c[instance], verbosity))
-
-
-@main.command()
-@click.argument('instance')
-def image(instance):
-    click.echo('Warning: the `image` command is being deprecated, please use `make image` instead',
-               err=True)
-    with load_config() as c:
-        validate_instance(instance, c)
-        bc.make_image(instance, c[instance], True)
-
-
-@main.command()
-@click.argument('instance')
-def delete(instance):
-    click.echo('Warning: the `delete` command is being deprecated, please use `clean build` instead',
-               err=True)
-    bc.clean_build(instance)
-
-
 @main.command('list')
 def lst():
-    ensure_current()
-
     with load_config_v2() as c:
         statuses = bc.statuses(c)
     longest = sorted(len(status[0]) for status in statuses)[-1]
@@ -74,34 +42,23 @@ def lst():
 
 
 @main.command()
-@click.option('-p', '--phase', type=click.Choice(['build', 'test']))
+@click.option('-p', '--phase', type=click.Choice(['build', 'test']),
+              default='build')
 @click.argument('instance')
 def login(phase, instance):
-    if phase:
-        with load_config_v2() as c:
-            validate_instance(instance, c)
-            if c[instance][phase]['connection'] == 'winrm':
-                click.echo('Login unsupported for winrm connections', err=True)
-            bc.login(instance, c[instance][phase], phase)
-    else:
-        with load_config() as c:
-            validate_instance(instance, c)
-            if c[instance]['connection'] == 'winrm':
-                click.echo('Login unsupported for winrm connections', err=True)
-                raise click.Abort()
-            bc.login(instance, c[instance])
+    with load_config_v2() as c:
+        validate_instance(instance, c)
+        if c[instance][phase]['connection'] == 'winrm':
+            click.echo('Login unsupported for winrm connections', err=True)
+        bc.login(instance, c[instance][phase], phase)
 
 
 @main.command()
 @click.option('-a', '--attribute')
 @click.argument('instance')
 def info(attribute, instance):
-    try:
-        with load_config_v2() as c:
-            validate_instance(instance, c)
-    except:
-        with load_config() as c:
-            validate_instance(instance, c)
+    with load_config_v2() as c:
+        validate_instance(instance, c)
     if not attribute:
         click.echo(json.dumps(c[instance], indent=2, separators=(',', ': ')))
     else:
@@ -201,31 +158,6 @@ def find_nested_attr(config, attr):
     for section in attr.split('.'):
         obj = obj[section]
     return obj
-
-
-def ensure_current():
-    url = 'https://github.com/cloudboss/bossimage'
-    is_old = False
-    try:
-        bc.load_config()
-        click.echo(
-            'Please update your .boss.yml. Instructions are on {}.'.format(url),
-            err=True)
-        is_old = True
-    except:
-        pass
-    if is_old:
-        raise click.Abort()
-
-
-@contextlib.contextmanager
-def load_config():
-    try:
-        c = bc.load_config()
-        yield c
-    except bc.ConfigurationError as e:
-        click.echo(e, err=True)
-        raise click.Abort()
 
 
 @contextlib.contextmanager

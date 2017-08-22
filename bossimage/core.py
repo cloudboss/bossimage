@@ -154,40 +154,6 @@ def tag_instance(tags, instance):
     print('Tagged instance with {}'.format(tags))
 
 
-def create_instance(config, files, keyname):
-    instance_params = dict(
-        ImageId=ami_id_for(config['source_ami']),
-        InstanceType=config['instance_type'],
-        MinCount=1,
-        MaxCount=1,
-        KeyName=keyname,
-        NetworkInterfaces=[dict(
-            DeviceIndex=0,
-            AssociatePublicIpAddress=config['associate_public_ip_address'],
-        )],
-        BlockDeviceMappings=camelify(config['block_device_mappings']),
-        UserData=user_data(config),
-    )
-    if config['subnet']:
-        subnet_id = subnet_id_for(config['subnet'])
-        instance_params['NetworkInterfaces'][0]['SubnetId'] = subnet_id
-    if config['security_groups']:
-        sg_ids = [sg_id_for(name) for name in config['security_groups']]
-        instance_params['NetworkInterfaces'][0]['Groups'] = sg_ids
-
-    (instance,) = ec2_connect().create_instances(**instance_params)
-    print('Created instance {}'.format(instance.id))
-
-    with Spinner('instance', 'to be running'):
-        instance.wait_until_running()
-
-    if config['tags']:
-        tag_instance(config['tags'], instance)
-
-    instance.reload()
-    return instance
-
-
 def role_name():
     env_role = os.getenv('BI_ROLE_NAME')
     return env_role if env_role else os.path.basename(os.getcwd())
@@ -348,32 +314,6 @@ def create_instance_v2(config, image_id, keyname):
     return ec2_instance
 
 
-def load_or_create_instance(config):
-    instance = '{}-{}'.format(config['platform'], config['profile'])
-    files = instance_files(instance)
-
-    if not os.path.exists(files['state']):
-        keyname = gen_keyname()
-
-        create_keypair(keyname, files['keyfile'])
-        ec2_instance = create_instance(config, files, keyname)
-
-        if config['connection'] == 'winrm':
-            encrypted_password = wait_for_password(ec2_instance)
-            password_file = tempfile.mktemp(dir='.boss')
-            with open(password_file, 'w') as f:
-                f.write(base64.decodestring(encrypted_password))
-            password = decrypt_password(password_file, files['keyfile'])
-            os.unlink(password_file)
-        else:
-            password = None
-
-        write_files(instance, files, ec2_instance, keyname, config, password)
-
-    with open(files['state']) as f:
-        return yaml.load(f)
-
-
 def wait_for_image(image):
     while(True):
         image.reload()
@@ -418,52 +358,6 @@ def wait_for_connection(addr, port, inventory, group, connection, end):
                     raise
         except:
             time.sleep(15)
-
-
-def run(instance, config, verbosity):
-    if not os.path.exists('.boss'):
-        os.mkdir('.boss')
-
-    files = instance_files(instance)
-
-    instance_info = load_or_create_instance(config)
-
-    ip = instance_info['build']['ip']
-    port = config['port']
-    end = time.time() + config['connection_timeout']
-    with Spinner('connection to {}:{}'.format(ip, port)):
-        wait_for_connection(
-            ip, port, files['inventory'], 'build', config['connection'], end)
-
-    env = os.environ.copy()
-
-    roles_path = '.boss/roles'
-
-    env.update(dict(ANSIBLE_ROLES_PATH='{}:..'.format(roles_path)))
-
-    if os.path.exists('requirements.yml'):
-        ansible_galaxy_args = [
-            'ansible-galaxy', 'install',
-            '-r', 'requirements.yml',
-            '-p', roles_path,
-        ]
-        if verbosity:
-            ansible_galaxy_args.append('-' + 'v' * verbosity)
-        ansible_galaxy = subprocess.Popen(ansible_galaxy_args, env=env)
-        ansible_galaxy.wait()
-
-    env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
-
-    ansible_playbook_args = ['ansible-playbook', '-i', files['inventory']]
-    if verbosity:
-        ansible_playbook_args.append('-' + 'v' * verbosity)
-    if config['extra_vars']:
-        ansible_playbook_args += [
-            '--extra-vars', json.dumps(config['extra_vars'])
-        ]
-    ansible_playbook_args.append(files['playbook'])
-    ansible_playbook = subprocess.Popen(ansible_playbook_args, env=env)
-    return ansible_playbook.wait()
 
 
 def make_build(instance, config, verbosity):
@@ -757,34 +651,6 @@ def subnet_id_for(name):
     )
 
 
-def load_config(path='.boss.yml'):
-    loader = j.FileSystemLoader('.')
-    pre_validate = pre_merge_schema()
-    post_validate = post_merge_schema()
-    try:
-        template = loader.load(j.Environment(), path, os.environ)
-        yml = template.render()
-        c = pre_validate(yaml.load(yml))
-        if 'driver' in c:
-            c['defaults'] = c['driver']
-            del(c['driver'])
-        if 'defaults' not in c:
-            c['defaults'] = {}
-        return post_validate(merge_config(c))
-    except j.TemplateNotFound:
-        error = 'Error loading {}: not found'.format(path)
-        raise ConfigurationError(error)
-    except j.TemplateSyntaxError as e:
-        error = 'Error loading {}: {}, line {}'.format(path, e, e.lineno)
-        raise ConfigurationError(error)
-    except IOError as e:
-        error = 'Error loading {}: {}'.format(path, e.strerror)
-        raise ConfigurationError(error)
-    except v.Invalid as e:
-        error = 'Error validating {}: {}'.format(path, e)
-        raise ConfigurationError(error)
-
-
 def load_config_v2(path='.boss.yml'):
     loader = j.FileSystemLoader('.')
     try:
@@ -804,25 +670,6 @@ def load_config_v2(path='.boss.yml'):
     except v.Invalid as e:
         error = 'Error validating {}: {}'.format(path, e)
         raise ConfigurationError(error)
-
-
-def merge_config(c):
-    merged = {}
-    for platform in c['platforms']:
-        for profile in c['profiles']:
-            instance = '{}-{}'.format(platform['name'], profile['name'])
-            merged[instance] = {
-                k: v for k, v in platform.items() if k != 'name'
-            }
-            merged[instance]['platform'] = platform['name']
-            merged[instance].update({
-                k: v for k, v in c['defaults'].items() if k not in platform
-            })
-            merged[instance].update({
-                k: v for k, v in profile.items() if k != 'name'
-            })
-            merged[instance]['profile'] = profile['name']
-    return merged
 
 
 def invalid(kind, item):
@@ -851,22 +698,6 @@ def is_volume_type(s):
     if s not in ('gp2', 'io1', 'standard'):
         raise invalid('volume_type', s)
     return s
-
-
-def pre_merge_schema():
-    default_profiles = [{
-        'name': 'default',
-        'extra_vars': {}
-    }]
-    return v.Schema({
-        v.Optional('driver', default={}): {v.Extra: object},
-        v.Required('platforms'): [{
-            v.Required('name'): str,
-        }],
-        v.Optional('profiles', default=default_profiles): [{
-            v.Required('name'): str,
-        }],
-    }, extra=v.ALLOW_EXTRA)
 
 
 def validate_v2(doc):
@@ -998,43 +829,3 @@ def transform_config(doc):
             transformed[instance]['platform'] = platform['name']
             transformed[instance]['profile'] = profile['name']
     return transformed
-
-
-def post_merge_schema():
-    ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
-    return v.Schema({
-        str: {
-            'platform': str,
-            'profile': str,
-            v.Required('source_ami'): str,
-            v.Required('instance_type'): str,
-            v.Optional('extra_vars', default={}): dict,
-            v.Optional('username', default='ec2-user'): str,
-            v.Optional('become', default=True): bool,
-            v.Optional('ami_name', default=ami_name): str,
-            v.Optional('connection', default='ssh'): v.Or('ssh', 'winrm'),
-            v.Optional('connection_timeout', default=600): int,
-            v.Optional('port', default=22): int,
-            v.Optional('associate_public_ip_address', default=True): bool,
-            v.Optional('subnet', default=''): str,
-            v.Optional('security_groups', default=[]): [str],
-            v.Optional('tags', default={}): {str: str},
-            v.Optional('user_data', default=''): v.Or(
-                str,
-                {'file': str},
-            ),
-            v.Optional('block_device_mappings', default=[]): [{
-                v.Required('device_name'): str,
-                'ebs': {
-                    'volume_size': int,
-                    'volume_type': is_volume_type,
-                    'delete_on_termination': bool,
-                    'encrypted': bool,
-                    'iops': int,
-                    'snapshot_id': is_snapshot_id,
-                },
-                'no_device': str,
-                'virtual_name': is_virtual_name,
-            }],
-        }
-    })

@@ -1,6 +1,7 @@
 import os
 import StringIO
 
+import mock
 from nose.tools import assert_equal, assert_raises
 
 import bossimage.core as bc
@@ -9,65 +10,124 @@ from tests.bossimage import probe, reset_probes, tempdir
 
 def test_merge_config():
     expected = {
-        'amz-2015092-default': {
-            'ami_name': '%(role)s-%(profile)s-%(version)s-%(platform)s',
-            'associate_public_ip_address': True,
-            'become': True,
-            'block_device_mappings': [{
-                'device_name': '/dev/sdf',
-                'ebs': {
-                    'delete_on_termination': True,
-                    'volume_size': 100,
-                    'volume_type': 'gp2'
-                }
-            }],
-            'connection': 'ssh',
-            'connection_timeout': 600,
-            'extra_vars': {},
-            'instance_type': 't2.micro',
-            'platform': 'amz-2015092',
-            'port': 22,
-            'profile': 'default',
-            'security_groups': [],
-            'source_ami': 'amzn-ami-hvm-2015.09.2.x86_64-gp2',
-            'subnet': '',
-            'username': 'ec2-user',
-            'user_data': '',
-            'tags': {
-                'Name': 'hello',
-                'Description': 'A description',
-            },
-         },
         'win-2012r2-default': {
-            'ami_name': 'ami-00000000',
-            'associate_public_ip_address': True,
-            'become': False,
-            'block_device_mappings': [],
-            'connection': 'winrm',
-            'connection_timeout': 300,
-            'extra_vars': {},
-            'instance_type': 'm3.medium',
             'platform': 'win-2012r2',
-            'port': 5985,
             'profile': 'default',
-            'security_groups': [],
-            'source_ami': 'Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10',
-            'subnet': '',
-            'username': 'Administrator',
-            'user_data': '',
-            'tags': {},
-       }
+            'build': {
+                'username': 'Administrator',
+                'subnet': '',
+                'source_ami': 'Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10',
+                'tags': {},
+                'extra_vars': {},
+                'iam_instance_profile': '',
+                'user_data': '',
+                'instance_type': 'm3.medium',
+                'connection': 'winrm',
+                'profile': 'default',
+                'platform': 'win-2012r2',
+                'associate_public_ip_address': True,
+                'become': False,
+                'connection_timeout': 300,
+                'port': 5985,
+                'security_groups': [],
+                'block_device_mappings': [],
+            },
+            'test': {
+                'username': 'Administrator',
+                'subnet': '',
+                'tags': {},
+                'iam_instance_profile': '',
+                'user_data': '',
+                'instance_type': 'm3.medium',
+                'connection': 'winrm',
+                'playbook': 'tests/test.yml',
+                'associate_public_ip_address': True,
+                'connection_timeout': 300,
+                'port': 5985,
+                'security_groups': [],
+                'block_device_mappings': [],
+            },
+            'image': {
+                'profile': 'default',
+                'platform': 'win-2012r2',
+                'ami_name': 'ami-00000000'
+            },
+        },
+        'amz-2015092-default': {
+            'platform': 'amz-2015092',
+            'profile': 'default',
+            'test': {
+                'username': 'ec2-user',
+                'subnet': '',
+                'tags': {
+                    'Name': 'hello',
+                    'Description': 'A description'
+                },
+                'iam_instance_profile': '',
+                'user_data': '',
+                'instance_type': 't2.micro',
+                'connection': 'ssh',
+                'playbook': 'tests/test.yml',
+                'associate_public_ip_address': True,
+                'connection_timeout': 600,
+                'port': 22,
+                'security_groups': [],
+                'block_device_mappings': [{
+                    'ebs': {
+                        'volume_size': 100,
+                        'delete_on_termination': True,
+                        'volume_type': 'gp2'
+                    },
+                    'device_name': '/dev/sdf'
+                }]
+            },
+            'image': {
+                'profile': 'default',
+                'platform': 'amz-2015092',
+                'ami_name': '%(role)s-%(profile)s-%(version)s-%(platform)s'
+            },
+            'build': {
+                'username': 'ec2-user',
+                'subnet': '',
+                'source_ami': 'amzn-ami-hvm-2015.09.2.x86_64-gp2',
+                'tags': {
+                    'Name': 'hello',
+                    'Description': 'A description'
+                },
+                'extra_vars': {},
+                'iam_instance_profile': '',
+                'user_data': '',
+                'instance_type': 't2.micro',
+                'connection': 'ssh',
+                'profile': 'default',
+                'platform': 'amz-2015092',
+                'associate_public_ip_address': True,
+                'become': True,
+                'connection_timeout': 600,
+                'port': 22,
+                'security_groups': [],
+                'block_device_mappings': [{
+                    'ebs': {
+                        'volume_size': 100,
+                        'delete_on_termination': True,
+                        'volume_type': 'gp2'
+                    },
+                    'device_name': '/dev/sdf'
+                }]
+            }
+        }
     }
 
-    c = bc.load_config('tests/resources/boss-good.yml')
+    c = bc.load_config_v2('tests/resources/boss-good.yml')
+    print(c)
 
     assert_equal(c, expected)
 
 
 def test_userdata():
-    c = bc.load_config('tests/resources/boss-userdata.yml')
+    c = bc.load_config_v2('tests/resources/boss-userdata.yml')
 
-    win_2012r2 = c['win-2012r2-default']
+    win_2012r2 = c['win-2012r2-default']['build']
     win_2012r2_user_data = '''<powershell>
 winrm qc -q
 winrm set winrm/config \'@{MaxTimeoutms="1800000"}\'
@@ -78,13 +138,13 @@ Get-NetFirewallProfile | Set-NetFirewallProfile -Enabled False\n</powershell>
 '''
     assert_equal(bc.user_data(win_2012r2), win_2012r2_user_data)
 
-    amz_2015092 = c['amz-2015092-default']
+    amz_2015092 = c['amz-2015092-default']['build']
     amz_2015092_user_data = '''#!/bin/sh
 pip install ansible
 '''
     assert_equal(bc.user_data(amz_2015092), amz_2015092_user_data)
 
-    centos_6 = c['centos-6-default']
+    centos_6 = c['centos-6-default']['build']
     centos_6_user_data = '''#cloud-config
 system_info:
   default_user:
@@ -92,7 +152,7 @@ system_info:
 '''
     assert_equal(bc.user_data(centos_6), centos_6_user_data)
 
-    centos_7 = c['centos-7-default']
+    centos_7 = c['centos-7-default']['build']
     assert_equal(bc.user_data(centos_7), '')
 
 
@@ -150,7 +210,7 @@ def test_load_config_not_found():
     nosuchfile = bc.random_string(100)
 
     with assert_raises(bc.ConfigurationError) as r:
-        bc.load_config(nosuchfile)
+        bc.load_config_v2(nosuchfile)
 
     assert_equal(
         r.exception.message,
@@ -162,7 +222,7 @@ def test_load_config_syntax_error():
     filename = 'tests/resources/boss-badsyntax.yml'
 
     with assert_raises(bc.ConfigurationError) as r:
-        bc.load_config(filename)
+        bc.load_config_v2(filename)
 
     expected = "Error loading {}: expected token 'end of print statement', got ':', line 4"
     assert_equal(
@@ -175,7 +235,7 @@ def test_load_config_validation_error1():
     filename = 'tests/resources/boss-bad1.yml'
 
     with assert_raises(bc.ConfigurationError) as r:
-        bc.load_config(filename)
+        bc.load_config_v2(filename)
 
     expected = "Error validating {}: required key not provided @ data['platforms'][0]['name']"
     assert_equal(
@@ -188,27 +248,23 @@ def test_load_config_validation_error2():
     filename = 'tests/resources/boss-bad2.yml'
 
     with assert_raises(bc.ConfigurationError) as r:
-        bc.load_config(filename)
+        bc.load_config_v2(filename)
 
-    expected = "Error validating {}: expected bool for dictionary value @ data['win-2012r2-default']['become']"
-    assert_equal(
-        r.exception.message,
-        expected.format(filename)
-    )
+    expected = "Error validating {}: expected bool"
+    assert(expected.format(filename) in r.exception.message)
 
 
 def test_config_env_vars():
     default_user = 'ec2-user'
     override_user = 'shisaboy'
 
-    if 'BI_USERNAME' in os.environ: del(os.environ['BI_USERNAME'])
+    with mock.patch('os.environ', {}):
+        c1 = bc.load_config_v2('tests/resources/boss-env.yml')
+    assert_equal(c1['amz-2015092-default']['build']['username'], default_user)
 
-    c1 = bc.load_config('tests/resources/boss-env.yml')
-    assert_equal(c1['amz-2015092-default']['username'], default_user)
-
-    os.environ['BI_USERNAME'] = override_user
-    c2 = bc.load_config('tests/resources/boss-env.yml')
-    assert_equal(c2['amz-2015092-default']['username'], override_user)
+    with mock.patch('os.environ', {'BI_USERNAME': override_user}):
+        c2 = bc.load_config_v2('tests/resources/boss-env.yml')
+    assert_equal(c2['amz-2015092-default']['build']['username'], override_user)
 
 
 def make_inventory_string():
