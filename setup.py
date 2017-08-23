@@ -1,4 +1,4 @@
-# Copyright 2017 Joseph Wright <rjosephwright@gmail.com>
+# Copyright 2017 Joseph Wright <joseph@cloudboss.co>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -45,7 +45,7 @@ config = {
     'author': 'Joseph Wright',
     'url': 'https://github.com/cloudboss/bossimage',
     'download_url': download_url,
-    'author_email': 'rjosephwright@gmail.com',
+    'author_email': 'joseph@cloudboss.co',
     'version': version,
     'install_requires': [
         'ansible',
