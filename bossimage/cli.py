@@ -128,7 +128,7 @@ def clean_build(instance):
 
 @clean.command('test')
 @click.argument('instance')
-def clean_build(instance):
+def clean_test(instance):
     bc.clean_test(instance)
 
 
