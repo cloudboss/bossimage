@@ -773,7 +773,7 @@ def validate_v2(doc):
         v.Optional('playbook', default='tests/test.yml'): str
     })
     platform = base.copy()
-    ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s'
+    ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s' # noqa
     platform.update({
         v.Required('name'): str,
         v.Required('build'): build,

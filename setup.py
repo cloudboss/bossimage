@@ -1,11 +1,10 @@
-import os
-
 import bossimage
 
 try:
     from setuptools import setup
 except ImportError:
     from distutils.core import setup
+
 
 def readme():
     try:
@@ -15,14 +14,18 @@ def readme():
         with open('README.md') as f:
             return f.read()
 
+
 version = bossimage.__version__
+download_url = 'https://github.com/cloudboss/bossimage/releases/{}'.format(
+    version
+)
 
 config = {
     'description': 'Tool to create AMIs with Ansible',
     'long_description': readme(),
     'author': 'Joseph Wright',
     'url': 'https://github.com/cloudboss/bossimage',
-    'download_url': 'https://github.com/cloudboss/bossimage/releases/{}'.format(version),
+    'download_url': download_url,
     'author_email': 'rjosephwright@gmail.com',
     'version': version,
     'install_requires': [

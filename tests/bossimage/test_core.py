@@ -2,7 +2,7 @@ import os
 import StringIO
 
 import mock
-from nose.tools import assert_equal, assert_raises
+from nose.tools import assert_equal, assert_raises, assert_true
 
 import bossimage.core as bc
 from tests.bossimage import probe, reset_probes, tempdir
@@ -16,7 +16,7 @@ def test_merge_config():
             'build': {
                 'username': 'Administrator',
                 'subnet': '',
-                'source_ami': 'Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10',
+                'source_ami': 'Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10', # noqa
                 'tags': {},
                 'extra_vars': {},
                 'iam_instance_profile': '',
@@ -197,7 +197,7 @@ def test_load_config_minimal():
                 'username': 'ec2-user',
             },
             'image': {
-                'ami_name': '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s',
+                'ami_name': '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s', # noqa
                 'platform': 'amz-2015092',
                 'profile': 'default',
             },
@@ -224,11 +224,8 @@ def test_load_config_syntax_error():
     with assert_raises(bc.ConfigurationError) as r:
         bc.load_config_v2(filename)
 
-    expected = "Error loading {}: expected token 'end of print statement', got ':', line 4"
-    assert_equal(
-        r.exception.message,
-        expected.format(filename)
-    )
+    expected = "expected token 'end of print statement', got ':', line 4"
+    assert_true(expected in r.exception.message)
 
 
 def test_load_config_validation_error1():
@@ -237,11 +234,8 @@ def test_load_config_validation_error1():
     with assert_raises(bc.ConfigurationError) as r:
         bc.load_config_v2(filename)
 
-    expected = "Error validating {}: required key not provided @ data['platforms'][0]['name']"
-    assert_equal(
-        r.exception.message,
-        expected.format(filename)
-    )
+    expected = "required key not provided @ data['platforms'][0]['name']"
+    assert_true(expected in r.exception.message)
 
 
 def test_load_config_validation_error2():
@@ -251,7 +245,7 @@ def test_load_config_validation_error2():
         bc.load_config_v2(filename)
 
     expected = "Error validating {}: expected bool"
-    assert(expected.format(filename) in r.exception.message)
+    assert_true(expected.format(filename) in r.exception.message)
 
 
 def test_config_env_vars():
@@ -268,19 +262,22 @@ def test_config_env_vars():
 
 
 def make_inventory_string():
+    args = ['rockafella.pem', 'ec2-user', None, '22', 'ssh']
     return '''
     [build]
     {}
     [test]
     {}
     '''.format(
-        bc.inventory_entry('10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh'),
-        bc.inventory_entry('10.10.10.251', 'rockafella.pem', 'ec2-user', None, '22', 'ssh'),
+        bc.inventory_entry(*['10.10.10.250']+args),
+        bc.inventory_entry(*['10.10.10.251']+args),
     )
 
 
 def test_inventory_entry():
-    gen_entry = bc.inventory_entry('10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh')
+    gen_entry = bc.inventory_entry(
+        '10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh'
+    )
     expected_entry = '10.10.10.250 ' \
                      'ansible_ssh_private_key_file=rockafella.pem ' \
                      'ansible_user=ec2-user ' \
@@ -294,18 +291,18 @@ def test_parse_inventory():
     fdesc = StringIO.StringIO(make_inventory_string())
 
     expected_result = {
-        'build': '10.10.10.250 ' \
-            'ansible_ssh_private_key_file=rockafella.pem ' \
-            'ansible_user=ec2-user ' \
-            'ansible_password=None ' \
-            'ansible_port=22 ' \
-            'ansible_connection=ssh',
-        'test': '10.10.10.251 ' \
-            'ansible_ssh_private_key_file=rockafella.pem ' \
-            'ansible_user=ec2-user ' \
-            'ansible_password=None ' \
-            'ansible_port=22 ' \
-            'ansible_connection=ssh',
+        'build': '10.10.10.250 '
+                 'ansible_ssh_private_key_file=rockafella.pem '
+                 'ansible_user=ec2-user '
+                 'ansible_password=None '
+                 'ansible_port=22 '
+                 'ansible_connection=ssh',
+        'test': '10.10.10.251 '
+                'ansible_ssh_private_key_file=rockafella.pem '
+                'ansible_user=ec2-user '
+                'ansible_password=None '
+                'ansible_port=22 '
+                'ansible_connection=ssh',
     }
     actual_result = bc.parse_inventory(fdesc)
     assert_equal(actual_result, expected_result)
@@ -314,8 +311,9 @@ def test_parse_inventory():
 def test_load_inventory():
     instance = 'centos-7-default'
     inventory_file = '{}/{}.inventory'.format(tempdir, instance)
-    build_entry = bc.inventory_entry('10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh')
-    test_entry = bc.inventory_entry('10.10.10.251', 'rockafella.pem', 'ec2-user', None, '22', 'ssh')
+    args = ['rockafella.pem', 'ec2-user', None, '22', 'ssh']
+    build_entry = bc.inventory_entry(*['10.10.10.250']+args)
+    test_entry = bc.inventory_entry(*['10.10.10.251']+args)
 
     assert(not os.path.exists(inventory_file))
 
@@ -377,12 +375,16 @@ def test_create_instance_tags():
 
     # win-2012r2 config has no tags
     reset_probes(['create_instances', 'create_tags'])
-    bc.create_instance_v2(config['win-2012r2-default']['build'], 'ami-00000000', 'mykey')
+    bc.create_instance_v2(
+        config['win-2012r2-default']['build'], 'ami-00000000', 'mykey'
+    )
     assert_equal(probe.called, ['create_instances'])
 
     # amz-2015092 config has tags
     reset_probes(['create_instances', 'create_tags'])
-    bc.create_instance_v2(config['amz-2015092-default']['build'], 'ami-00000000', 'mykey')
+    bc.create_instance_v2(
+        config['amz-2015092-default']['build'], 'ami-00000000', 'mykey'
+    )
     assert_equal(probe.called, ['create_instances', 'create_tags'])
 
 
@@ -390,12 +392,19 @@ def test_make_build():
     config = bc.load_config_v2('tests/resources/boss-v2.yml')
     instance = 'amz-2015092-default'
 
-    reset_probes(['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
+    reset_probes([
+        'create_keypair', 'create_instance_v2',
+        'write_playbook', 'run_ansible'
+    ])
     bc.make_build(instance, config[instance]['build'], 1)
-    assert_equal(probe.called, ['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
+    assert_equal(probe.called, [
+        'create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'
+    ])
 
     # Ensure that a second run only runs ansible without creating new resources
-    reset_probes(['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
+    reset_probes([
+        'create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'
+    ])
     bc.make_build(instance, config[instance]['build'], 1)
     assert_equal(probe.called, ['run_ansible'])
 
