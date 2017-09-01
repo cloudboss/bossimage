@@ -1,6 +1,6 @@
 language: python
 python:
-- '2.7'
+  - '2.7'
 addons:
   apt:
     packages:
@@ -15,13 +15,13 @@ deploy:
       secure: PzxSgIMizOiOtBErXkHrF4fb7sSiYvLtT98U41T+esdWmWhHwAYUoWDViqP8AooTXSd+Kovk9M4uj2GpnCTIRfHwUOj2UlZQxFQKrCg0VV582KSOX3RUFiIlVtvQB65ykA+xJizS7gdGmddZIN/yUZLY6qzS/HYlEGvPqeJpPOA/IdR++K8PxTomjNl+CKCxFxcrKl2+SBrNZ+fn2KqJ+P6yz0RM5j31/KHw6fNgB2tTGaYzeIfVCKKuBPsF33bXMk/RG9P+izjGapCNhvC+FXTxrMnv1ilKy7kp1h7hGBLp+rivX1A9bkR6w6nLYulUuS7V6hGSVA/ZIXK7WfDLT3X1shAdXNdbZUyWWMrnuivBFCNK24UqnyG4032idDbwBPUdfY1/FawVbNeV9d57W7ZjMeco78OBY2e3gViRuOfoo8mpCE9ZhVa6aoa5IcoQYBPyMJI8ZWgRVrsXjm4r/+uaqeKrB46/Ix8elySc2NEvHVLid3+O+SMFWQayI3XFBe4M+eLoBQo5FRq28nZAAQozJLiaO9DFXMaw1YDMRzoUii/9Ik8FdiqIlGFR603rUTiWL5ah9m3+WYpLsF1CnkGj9hEBqYcFZOau+Z7B2rp9COEndJHEKCU4jgyjodOi3iqwg52Wp02L59u4UT83sMVmsq3/271R14UeMZLX/bg=
     on:
       tags: false
-      distributions: sdist bdist_wheel
-      repo: cloudboss/bossimage
+    distributions: sdist bdist_wheel
+    repo: cloudboss/bossimage
   - provider: pypi
     user: rjosephwright
     password:
       secure: MvRGz6OoUx3fN7HTqizUoVquvZNjNXLSulANkA5E+wz2JgTeEOk2vm97VpRF8UYE4ZbdHv10SEmxQ7jKYyzJBAMGAoiJVNQogsm7juaF+36hcQR5W+4b4QjP98h/z7jL1pcUOnFaDz1bLKkSnGsH94SyxC9i5KzBk09V2pa4SL5yRxQffYVPh0aH44TpNmDu4kCrxKVS5qDWpEvKJGLeC6oX7mDKAcXXmQ3XAL7ozJBCVooDlUnMhQmU0iIaoC7NqHICzg/Ct62CBwAcHGozbk9iVr7aiTpd0ZPHRw7GHMsSqSUirOVUe7ycS5ejTdyNVddg1xTJm/U9CiltbvXhA7eKDXwjlmt9rNCutWfpi85j7LNp96v35bAGUkhRf+KjRA7nFLIcj85pFtBKQ0C2sj6vMT9PR8fx8R+RpWdjSzP3NKfSk7qtZXKQRX6TDmzZUz7sYJxdyEvQpPdNJxv9tCIYRqYO0SB8ILE4GEw0ahU16NH4miQ9qftd5rE3H3oM4EwR/w/7c+hkPeZe7qM3znaDs+YO3qWr7ufGf2W/kZ8byr/uE3Bd9ucjEmaXeHzWPkUqkM3Nxxi+rSDpfvAZ/XB3wgekV3yte6JaMNdC+q6PsRDG8Vf3zoT4+5l7gLljScnkzSCqzloSlDhyaI+G1fNenKoyvXc89/+plS6rvFU=
     on:
       tags: true
-      distributions: sdist bdist_wheel
-      repo: cloudboss/bossimage
+    distributions: sdist bdist_wheel
+    repo: cloudboss/bossimage
