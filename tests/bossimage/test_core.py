@@ -1,69 +1,144 @@
+# Copyright 2017 Joseph Wright <joseph@cloudboss.co>
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 import os
-import tempfile
 import StringIO
 
-import yaml
-from nose.tools import assert_equal, assert_raises
-from voluptuous import MultipleInvalid, TypeInvalid
+import mock
+from nose.tools import assert_equal, assert_raises, assert_true
 
-import bossimage.cli as cli
 import bossimage.core as bc
 from tests.bossimage import probe, reset_probes, tempdir
 
 
 def test_merge_config():
     expected = {
-        'amz-2015092-default': {
-            'ami_name': '%(role)s-%(profile)s-%(version)s-%(platform)s',
-            'associate_public_ip_address': True,
-            'become': True,
-            'block_device_mappings': [{
-                'device_name': '/dev/sdf',
-                'ebs': {
-                    'delete_on_termination': True,
-                    'volume_size': 100,
-                    'volume_type': 'gp2'
-                }
-            }],
-            'connection': 'ssh',
-            'connection_timeout': 600,
-            'extra_vars': {},
-            'instance_type': 't2.micro',
-            'platform': 'amz-2015092',
-            'port': 22,
-            'profile': 'default',
-            'security_groups': [],
-            'source_ami': 'amzn-ami-hvm-2015.09.2.x86_64-gp2',
-            'subnet': '',
-            'username': 'ec2-user',
-            'user_data': '',
-            'tags': {
-                'Name': 'hello',
-                'Description': 'A description',
-            },
-         },
         'win-2012r2-default': {
-            'ami_name': 'ami-00000000',
-            'associate_public_ip_address': True,
-            'become': False,
-            'block_device_mappings': [],
-            'connection': 'winrm',
-            'connection_timeout': 300,
-            'extra_vars': {},
-            'instance_type': 'm3.medium',
             'platform': 'win-2012r2',
-            'port': 5985,
             'profile': 'default',
-            'security_groups': [],
-            'source_ami': 'Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10',
-            'subnet': '',
-            'username': 'Administrator',
-            'user_data': '',
-            'tags': {},
-       }
+            'build': {
+                'username': 'Administrator',
+                'subnet': '',
+                'source_ami': 'Windows_Server-2012-R2_RTM-English-64Bit-Base-2016.02.10', # noqa
+                'tags': {},
+                'extra_vars': {},
+                'iam_instance_profile': '',
+                'user_data': '',
+                'instance_type': 'm3.medium',
+                'connection': 'winrm',
+                'profile': 'default',
+                'platform': 'win-2012r2',
+                'associate_public_ip_address': True,
+                'become': False,
+                'connection_timeout': 300,
+                'port': 5985,
+                'security_groups': [],
+                'block_device_mappings': [],
+            },
+            'test': {
+                'username': 'Administrator',
+                'subnet': '',
+                'tags': {},
+                'iam_instance_profile': '',
+                'user_data': '',
+                'instance_type': 'm3.medium',
+                'connection': 'winrm',
+                'playbook': 'tests/test.yml',
+                'associate_public_ip_address': True,
+                'connection_timeout': 300,
+                'port': 5985,
+                'security_groups': [],
+                'block_device_mappings': [],
+            },
+            'image': {
+                'profile': 'default',
+                'platform': 'win-2012r2',
+                'ami_name': 'ami-00000000'
+            },
+        },
+        'amz-2015092-default': {
+            'platform': 'amz-2015092',
+            'profile': 'default',
+            'test': {
+                'username': 'ec2-user',
+                'subnet': '',
+                'tags': {
+                    'Name': 'hello',
+                    'Description': 'A description'
+                },
+                'iam_instance_profile': '',
+                'user_data': '',
+                'instance_type': 't2.micro',
+                'connection': 'ssh',
+                'playbook': 'tests/test.yml',
+                'associate_public_ip_address': True,
+                'connection_timeout': 600,
+                'port': 22,
+                'security_groups': [],
+                'block_device_mappings': [{
+                    'ebs': {
+                        'volume_size': 100,
+                        'delete_on_termination': True,
+                        'volume_type': 'gp2'
+                    },
+                    'device_name': '/dev/sdf'
+                }]
+            },
+            'image': {
+                'profile': 'default',
+                'platform': 'amz-2015092',
+                'ami_name': '%(role)s-%(profile)s-%(version)s-%(platform)s'
+            },
+            'build': {
+                'username': 'ec2-user',
+                'subnet': '',
+                'source_ami': 'amzn-ami-hvm-2015.09.2.x86_64-gp2',
+                'tags': {
+                    'Name': 'hello',
+                    'Description': 'A description'
+                },
+                'extra_vars': {},
+                'iam_instance_profile': '',
+                'user_data': '',
+                'instance_type': 't2.micro',
+                'connection': 'ssh',
+                'profile': 'default',
+                'platform': 'amz-2015092',
+                'associate_public_ip_address': True,
+                'become': True,
+                'connection_timeout': 600,
+                'port': 22,
+                'security_groups': [],
+                'block_device_mappings': [{
+                    'ebs': {
+                        'volume_size': 100,
+                        'delete_on_termination': True,
+                        'volume_type': 'gp2'
+                    },
+                    'device_name': '/dev/sdf'
+                }]
+            }
+        }
     }
 
     c = bc.load_config('tests/resources/boss-good.yml')
+    print(c)
 
     assert_equal(c, expected)
 
@@ -71,7 +146,7 @@ def test_merge_config():
 def test_userdata():
     c = bc.load_config('tests/resources/boss-userdata.yml')
 
-    win_2012r2 = c['win-2012r2-default']
+    win_2012r2 = c['win-2012r2-default']['build']
     win_2012r2_user_data = '''<powershell>
 winrm qc -q
 winrm set winrm/config \'@{MaxTimeoutms="1800000"}\'
@@ -82,13 +157,13 @@ Get-NetFirewallProfile | Set-NetFirewallProfile -Enabled False\n</powershell>
 '''
     assert_equal(bc.user_data(win_2012r2), win_2012r2_user_data)
 
-    amz_2015092 = c['amz-2015092-default']
+    amz_2015092 = c['amz-2015092-default']['build']
     amz_2015092_user_data = '''#!/bin/sh
 pip install ansible
 '''
     assert_equal(bc.user_data(amz_2015092), amz_2015092_user_data)
 
-    centos_6 = c['centos-6-default']
+    centos_6 = c['centos-6-default']['build']
     centos_6_user_data = '''#cloud-config
 system_info:
   default_user:
@@ -96,12 +171,12 @@ system_info:
 '''
     assert_equal(bc.user_data(centos_6), centos_6_user_data)
 
-    centos_7 = c['centos-7-default']
+    centos_7 = c['centos-7-default']['build']
     assert_equal(bc.user_data(centos_7), '')
 
 
 def test_load_config_minimal():
-    c = bc.load_config_v2('tests/resources/boss-minimal.yml')
+    c = bc.load_config('tests/resources/boss-minimal.yml')
     expected_transformation = {
         'amz-2015092-default': {
             'platform': 'amz-2015092',
@@ -141,7 +216,7 @@ def test_load_config_minimal():
                 'username': 'ec2-user',
             },
             'image': {
-                'ami_name': '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s',
+                'ami_name': '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s', # noqa
                 'platform': 'amz-2015092',
                 'profile': 'default',
             },
@@ -168,11 +243,8 @@ def test_load_config_syntax_error():
     with assert_raises(bc.ConfigurationError) as r:
         bc.load_config(filename)
 
-    expected = "Error loading {}: expected token 'end of print statement', got ':', line 4"
-    assert_equal(
-        r.exception.message,
-        expected.format(filename)
-    )
+    expected = "expected token 'end of print statement', got ':', line 4"
+    assert_true(expected in r.exception.message)
 
 
 def test_load_config_validation_error1():
@@ -181,11 +253,8 @@ def test_load_config_validation_error1():
     with assert_raises(bc.ConfigurationError) as r:
         bc.load_config(filename)
 
-    expected = "Error validating {}: required key not provided @ data['platforms'][0]['name']"
-    assert_equal(
-        r.exception.message,
-        expected.format(filename)
-    )
+    expected = "required key not provided @ data['platforms'][0]['name']"
+    assert_true(expected in r.exception.message)
 
 
 def test_load_config_validation_error2():
@@ -194,41 +263,40 @@ def test_load_config_validation_error2():
     with assert_raises(bc.ConfigurationError) as r:
         bc.load_config(filename)
 
-    expected = "Error validating {}: expected bool for dictionary value @ data['win-2012r2-default']['become']"
-    assert_equal(
-        r.exception.message,
-        expected.format(filename)
-    )
+    expected = "Error validating {}: expected bool"
+    assert_true(expected.format(filename) in r.exception.message)
 
 
 def test_config_env_vars():
     default_user = 'ec2-user'
     override_user = 'shisaboy'
 
-    if 'BI_USERNAME' in os.environ: del(os.environ['BI_USERNAME'])
+    with mock.patch('os.environ', {}):
+        c1 = bc.load_config('tests/resources/boss-env.yml')
+    assert_equal(c1['amz-2015092-default']['build']['username'], default_user)
 
-    c1 = bc.load_config('tests/resources/boss-env.yml')
-    assert_equal(c1['amz-2015092-default']['username'], default_user)
-
-    os.environ['BI_USERNAME'] = override_user
-    c2 = bc.load_config('tests/resources/boss-env.yml')
-    assert_equal(c2['amz-2015092-default']['username'], override_user)
+    with mock.patch('os.environ', {'BI_USERNAME': override_user}):
+        c2 = bc.load_config('tests/resources/boss-env.yml')
+    assert_equal(c2['amz-2015092-default']['build']['username'], override_user)
 
 
 def make_inventory_string():
+    args = ['rockafella.pem', 'ec2-user', None, '22', 'ssh']
     return '''
     [build]
     {}
     [test]
     {}
     '''.format(
-        bc.inventory_entry('10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh'),
-        bc.inventory_entry('10.10.10.251', 'rockafella.pem', 'ec2-user', None, '22', 'ssh'),
+        bc.inventory_entry(*['10.10.10.250']+args),
+        bc.inventory_entry(*['10.10.10.251']+args),
     )
 
 
 def test_inventory_entry():
-    gen_entry = bc.inventory_entry('10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh')
+    gen_entry = bc.inventory_entry(
+        '10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh'
+    )
     expected_entry = '10.10.10.250 ' \
                      'ansible_ssh_private_key_file=rockafella.pem ' \
                      'ansible_user=ec2-user ' \
@@ -242,18 +310,18 @@ def test_parse_inventory():
     fdesc = StringIO.StringIO(make_inventory_string())
 
     expected_result = {
-        'build': '10.10.10.250 ' \
-            'ansible_ssh_private_key_file=rockafella.pem ' \
-            'ansible_user=ec2-user ' \
-            'ansible_password=None ' \
-            'ansible_port=22 ' \
-            'ansible_connection=ssh',
-        'test': '10.10.10.251 ' \
-            'ansible_ssh_private_key_file=rockafella.pem ' \
-            'ansible_user=ec2-user ' \
-            'ansible_password=None ' \
-            'ansible_port=22 ' \
-            'ansible_connection=ssh',
+        'build': '10.10.10.250 '
+                 'ansible_ssh_private_key_file=rockafella.pem '
+                 'ansible_user=ec2-user '
+                 'ansible_password=None '
+                 'ansible_port=22 '
+                 'ansible_connection=ssh',
+        'test': '10.10.10.251 '
+                'ansible_ssh_private_key_file=rockafella.pem '
+                'ansible_user=ec2-user '
+                'ansible_password=None '
+                'ansible_port=22 '
+                'ansible_connection=ssh',
     }
     actual_result = bc.parse_inventory(fdesc)
     assert_equal(actual_result, expected_result)
@@ -262,8 +330,9 @@ def test_parse_inventory():
 def test_load_inventory():
     instance = 'centos-7-default'
     inventory_file = '{}/{}.inventory'.format(tempdir, instance)
-    build_entry = bc.inventory_entry('10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh')
-    test_entry = bc.inventory_entry('10.10.10.251', 'rockafella.pem', 'ec2-user', None, '22', 'ssh')
+    args = ['rockafella.pem', 'ec2-user', None, '22', 'ssh']
+    build_entry = bc.inventory_entry(*['10.10.10.250']+args)
+    test_entry = bc.inventory_entry(*['10.10.10.251']+args)
 
     assert(not os.path.exists(inventory_file))
 
@@ -321,35 +390,46 @@ def test_role_version():
 
 
 def test_create_instance_tags():
-    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    config = bc.load_config('tests/resources/boss.yml')
 
     # win-2012r2 config has no tags
     reset_probes(['create_instances', 'create_tags'])
-    bc.create_instance_v2(config['win-2012r2-default']['build'], 'ami-00000000', 'mykey')
+    bc.create_instance(
+        config['win-2012r2-default']['build'], 'ami-00000000', 'mykey'
+    )
     assert_equal(probe.called, ['create_instances'])
 
     # amz-2015092 config has tags
     reset_probes(['create_instances', 'create_tags'])
-    bc.create_instance_v2(config['amz-2015092-default']['build'], 'ami-00000000', 'mykey')
+    bc.create_instance(
+        config['amz-2015092-default']['build'], 'ami-00000000', 'mykey'
+    )
     assert_equal(probe.called, ['create_instances', 'create_tags'])
 
 
 def test_make_build():
-    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
 
-    reset_probes(['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
+    reset_probes([
+        'create_keypair', 'create_instance',
+        'write_playbook', 'run_ansible'
+    ])
     bc.make_build(instance, config[instance]['build'], 1)
-    assert_equal(probe.called, ['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
+    assert_equal(probe.called, [
+        'create_keypair', 'create_instance', 'write_playbook', 'run_ansible'
+    ])
 
     # Ensure that a second run only runs ansible without creating new resources
-    reset_probes(['create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'])
+    reset_probes([
+        'create_keypair', 'create_instance', 'write_playbook', 'run_ansible'
+    ])
     bc.make_build(instance, config[instance]['build'], 1)
     assert_equal(probe.called, ['run_ansible'])
 
 
 def test_make_test():
-    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
 
     with assert_raises(bc.StateError) as r:
@@ -371,12 +451,12 @@ def test_make_test():
 
     bc.make_image(instance, config[instance]['image'], True)
 
-    reset_probes(['create_instance_v2', 'run_ansible'])
+    reset_probes(['create_instance', 'run_ansible'])
     bc.make_test(instance, config[instance]['test'], 1)
-    assert_equal(probe.called, ['create_instance_v2', 'run_ansible'])
+    assert_equal(probe.called, ['create_instance', 'run_ansible'])
 
     # As with `build`, a second run should create no new resources
-    reset_probes(['create_instance_v2', 'run_ansible'])
+    reset_probes(['create_instance', 'run_ansible'])
     bc.make_test(instance, config[instance]['test'], 1)
     assert_equal(probe.called, ['run_ansible'])
 
@@ -385,7 +465,7 @@ def test_make_test():
 
 
 def test_make_image_wait():
-    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
     wait = True
 
@@ -409,7 +489,7 @@ def test_make_image_wait():
 
 
 def test_make_image_no_wait():
-    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
     wait = False
 
