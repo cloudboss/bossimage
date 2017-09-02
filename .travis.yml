@@ -6,7 +6,7 @@ addons:
     packages:
       - pandoc
 install: pip install -r requirements-dev.txt
-script: nosetests
+script: python setup.py test
 deploy:
   - provider: pypi
     user: rjosephwright

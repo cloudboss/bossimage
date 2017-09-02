@@ -17,12 +17,7 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
-import bossimage
-
-try:
-    from setuptools import setup
-except ImportError:
-    from distutils.core import setup
+from setuptools import setup
 
 
 def readme():
@@ -34,19 +29,17 @@ def readme():
             return f.read()
 
 
-version = bossimage.__version__
-download_url = 'https://github.com/cloudboss/bossimage/releases/{}'.format(
-    version
-)
-
 config = {
     'description': 'Tool to create AMIs with Ansible',
     'long_description': readme(),
     'author': 'Joseph Wright',
     'url': 'https://github.com/cloudboss/bossimage',
-    'download_url': download_url,
+    'download_url': 'https://pypi.python.org/pypi/friend',
     'author_email': 'joseph@cloudboss.co',
-    'version': version,
+    'setup_requires': [
+        'setuptools_scm',
+    ],
+    'use_scm_version': True,
     'install_requires': [
         'ansible',
         'boto3',
@@ -61,7 +54,8 @@ config = {
     'entry_points': {
         'console_scripts': ['bi = bossimage.cli:main']
     },
-    'name': 'bossimage'
+    'name': 'bossimage',
+    'test_suite': 'nose.collector',
 }
 
 setup(**config)
