@@ -37,7 +37,7 @@ def setup():
     bc.wait_for_image = probe(wait_for_image)
     bc.run_ansible = probe(run_ansible)
     bc.create_keypair = probe(bc.create_keypair)
-    bc.create_instance_v2 = probe(bc.create_instance_v2)
+    bc.create_instance = probe(bc.create_instance)
     bc.write_playbook = probe(bc.write_playbook)
 
 

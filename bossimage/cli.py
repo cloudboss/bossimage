@@ -33,7 +33,7 @@ def main(): pass
 
 @main.command('list')
 def lst():
-    with load_config_v2() as c:
+    with load_config() as c:
         statuses = bc.statuses(c)
     longest = sorted(len(status[0]) for status in statuses)[-1]
     for instance, created in statuses:
@@ -46,7 +46,7 @@ def lst():
               default='build')
 @click.argument('instance')
 def login(phase, instance):
-    with load_config_v2() as c:
+    with load_config() as c:
         validate_instance(instance, c)
         if c[instance][phase]['connection'] == 'winrm':
             click.echo('Login unsupported for winrm connections', err=True)
@@ -57,7 +57,7 @@ def login(phase, instance):
 @click.option('-a', '--attribute')
 @click.argument('instance')
 def info(attribute, instance):
-    with load_config_v2() as c:
+    with load_config() as c:
         validate_instance(instance, c)
     if not attribute:
         click.echo(json.dumps(c[instance], indent=2, separators=(',', ': ')))
@@ -83,7 +83,7 @@ def make(): pass
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
 def make_build(instance, verbosity):
-    with load_config_v2() as c:
+    with load_config() as c:
         validate_instance(instance, c)
         sys.exit(bc.make_build(instance, c[instance]['build'], verbosity))
 
@@ -93,7 +93,7 @@ def make_build(instance, verbosity):
 @click.option('-w', '--wait/--no-wait', default=True,
               help='Wait for image to be available')
 def make_image(instance, wait):
-    with load_config_v2() as c:
+    with load_config() as c:
         validate_instance(instance, c)
         try:
             bc.make_image(instance, c[instance]['image'], wait)
@@ -107,7 +107,7 @@ def make_image(instance, wait):
 @click.option('-v', '--verbosity', count=True,
               help='Verbosity, may be repeated up to 4 times')
 def make_test(instance, verbosity):
-    with load_config_v2() as c:
+    with load_config() as c:
         validate_instance(instance, c)
         try:
             sys.exit(bc.make_test(instance, c[instance]['test'], verbosity))
@@ -161,9 +161,9 @@ def find_nested_attr(config, attr):
 
 
 @contextlib.contextmanager
-def load_config_v2():
+def load_config():
     try:
-        c = bc.load_config_v2()
+        c = bc.load_config()
         yield c
     except bc.ConfigurationError as e:
         click.echo(e, err=True)

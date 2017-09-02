@@ -137,14 +137,14 @@ def test_merge_config():
         }
     }
 
-    c = bc.load_config_v2('tests/resources/boss-good.yml')
+    c = bc.load_config('tests/resources/boss-good.yml')
     print(c)
 
     assert_equal(c, expected)
 
 
 def test_userdata():
-    c = bc.load_config_v2('tests/resources/boss-userdata.yml')
+    c = bc.load_config('tests/resources/boss-userdata.yml')
 
     win_2012r2 = c['win-2012r2-default']['build']
     win_2012r2_user_data = '''<powershell>
@@ -176,7 +176,7 @@ system_info:
 
 
 def test_load_config_minimal():
-    c = bc.load_config_v2('tests/resources/boss-minimal.yml')
+    c = bc.load_config('tests/resources/boss-minimal.yml')
     expected_transformation = {
         'amz-2015092-default': {
             'platform': 'amz-2015092',
@@ -229,7 +229,7 @@ def test_load_config_not_found():
     nosuchfile = bc.random_string(100)
 
     with assert_raises(bc.ConfigurationError) as r:
-        bc.load_config_v2(nosuchfile)
+        bc.load_config(nosuchfile)
 
     assert_equal(
         r.exception.message,
@@ -241,7 +241,7 @@ def test_load_config_syntax_error():
     filename = 'tests/resources/boss-badsyntax.yml'
 
     with assert_raises(bc.ConfigurationError) as r:
-        bc.load_config_v2(filename)
+        bc.load_config(filename)
 
     expected = "expected token 'end of print statement', got ':', line 4"
     assert_true(expected in r.exception.message)
@@ -251,7 +251,7 @@ def test_load_config_validation_error1():
     filename = 'tests/resources/boss-bad1.yml'
 
     with assert_raises(bc.ConfigurationError) as r:
-        bc.load_config_v2(filename)
+        bc.load_config(filename)
 
     expected = "required key not provided @ data['platforms'][0]['name']"
     assert_true(expected in r.exception.message)
@@ -261,7 +261,7 @@ def test_load_config_validation_error2():
     filename = 'tests/resources/boss-bad2.yml'
 
     with assert_raises(bc.ConfigurationError) as r:
-        bc.load_config_v2(filename)
+        bc.load_config(filename)
 
     expected = "Error validating {}: expected bool"
     assert_true(expected.format(filename) in r.exception.message)
@@ -272,11 +272,11 @@ def test_config_env_vars():
     override_user = 'shisaboy'
 
     with mock.patch('os.environ', {}):
-        c1 = bc.load_config_v2('tests/resources/boss-env.yml')
+        c1 = bc.load_config('tests/resources/boss-env.yml')
     assert_equal(c1['amz-2015092-default']['build']['username'], default_user)
 
     with mock.patch('os.environ', {'BI_USERNAME': override_user}):
-        c2 = bc.load_config_v2('tests/resources/boss-env.yml')
+        c2 = bc.load_config('tests/resources/boss-env.yml')
     assert_equal(c2['amz-2015092-default']['build']['username'], override_user)
 
 
@@ -390,46 +390,46 @@ def test_role_version():
 
 
 def test_create_instance_tags():
-    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    config = bc.load_config('tests/resources/boss.yml')
 
     # win-2012r2 config has no tags
     reset_probes(['create_instances', 'create_tags'])
-    bc.create_instance_v2(
+    bc.create_instance(
         config['win-2012r2-default']['build'], 'ami-00000000', 'mykey'
     )
     assert_equal(probe.called, ['create_instances'])
 
     # amz-2015092 config has tags
     reset_probes(['create_instances', 'create_tags'])
-    bc.create_instance_v2(
+    bc.create_instance(
         config['amz-2015092-default']['build'], 'ami-00000000', 'mykey'
     )
     assert_equal(probe.called, ['create_instances', 'create_tags'])
 
 
 def test_make_build():
-    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
 
     reset_probes([
-        'create_keypair', 'create_instance_v2',
+        'create_keypair', 'create_instance',
         'write_playbook', 'run_ansible'
     ])
     bc.make_build(instance, config[instance]['build'], 1)
     assert_equal(probe.called, [
-        'create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'
+        'create_keypair', 'create_instance', 'write_playbook', 'run_ansible'
     ])
 
     # Ensure that a second run only runs ansible without creating new resources
     reset_probes([
-        'create_keypair', 'create_instance_v2', 'write_playbook', 'run_ansible'
+        'create_keypair', 'create_instance', 'write_playbook', 'run_ansible'
     ])
     bc.make_build(instance, config[instance]['build'], 1)
     assert_equal(probe.called, ['run_ansible'])
 
 
 def test_make_test():
-    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
 
     with assert_raises(bc.StateError) as r:
@@ -451,12 +451,12 @@ def test_make_test():
 
     bc.make_image(instance, config[instance]['image'], True)
 
-    reset_probes(['create_instance_v2', 'run_ansible'])
+    reset_probes(['create_instance', 'run_ansible'])
     bc.make_test(instance, config[instance]['test'], 1)
-    assert_equal(probe.called, ['create_instance_v2', 'run_ansible'])
+    assert_equal(probe.called, ['create_instance', 'run_ansible'])
 
     # As with `build`, a second run should create no new resources
-    reset_probes(['create_instance_v2', 'run_ansible'])
+    reset_probes(['create_instance', 'run_ansible'])
     bc.make_test(instance, config[instance]['test'], 1)
     assert_equal(probe.called, ['run_ansible'])
 
@@ -465,7 +465,7 @@ def test_make_test():
 
 
 def test_make_image_wait():
-    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
     wait = True
 
@@ -489,7 +489,7 @@ def test_make_image_wait():
 
 
 def test_make_image_no_wait():
-    config = bc.load_config_v2('tests/resources/boss-v2.yml')
+    config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
     wait = False
 

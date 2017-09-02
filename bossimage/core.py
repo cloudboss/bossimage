@@ -276,7 +276,7 @@ def get_windows_password(ec2_instance, keyfile):
     return password
 
 
-def create_instance_v2(config, image_id, keyname):
+def create_instance(config, image_id, keyname):
     instance_params = dict(
         ImageId=image_id,
         InstanceType=config['instance_type'],
@@ -375,7 +375,7 @@ def make_build(instance, config, verbosity):
 
     with load_state(instance) as state:
         if 'build' not in state:
-            ec2_instance = create_instance_v2(
+            ec2_instance = create_instance(
                 config, ami_id_for(config['source_ami']), state['keyname']
             )
             if config['associate_public_ip_address']:
@@ -411,7 +411,7 @@ def make_test(instance, config, verbosity):
             raise StateError('Cannot run `make test` before `make image`')
 
         if 'test' not in state:
-            ec2_instance = create_instance_v2(
+            ec2_instance = create_instance(
                 config, state['image']['id'], state['keyname']
             )
             if config['associate_public_ip_address']:
@@ -587,6 +587,7 @@ def login(instance, config, phase='build'):
     with open(files['state']) as f:
         state = yaml.load(f)
 
+    print('state: {}'.format(state))
     ssh = subprocess.Popen([
         'ssh', '-i', files['keyfile'],
         '-l', config['username'], state[phase]['ip']
@@ -651,7 +652,7 @@ def subnet_id_for(name):
     )
 
 
-def load_config_v2(path='.boss.yml'):
+def load_config(path='.boss.yml'):
     loader = j.FileSystemLoader('.')
     try:
         template = loader.load(j.Environment(), path, os.environ)
@@ -700,7 +701,7 @@ def is_volume_type(s):
     return s
 
 
-def validate_v2(doc):
+def validate(doc):
     base = {
         v.Optional('instance_type'): str,
         v.Optional('username'): str,
@@ -795,7 +796,7 @@ def validate_v2(doc):
 
 def transform_config(doc):
     doc.setdefault('defaults', {})
-    validated = validate_v2(doc)
+    validated = validate(doc)
     transformed = {}
     excluded_items = ('name', 'build', 'image', 'test')
     for platform in validated['platforms']:
