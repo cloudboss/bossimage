@@ -54,7 +54,8 @@ config = {
     'entry_points': {
         'console_scripts': ['bi = bossimage.cli:main']
     },
-    'name': 'bossimage'
+    'name': 'bossimage',
+    'test_suite': 'nose.collector',
 }
 
 setup(**config)
