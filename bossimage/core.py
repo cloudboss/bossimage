@@ -20,14 +20,11 @@
 from __future__ import print_function
 import base64
 import contextlib
-import functools
 import itertools
 import json
 import os
-import random
 import re
 import socket
-import string
 import subprocess
 import sys
 import threading as t
@@ -37,6 +34,8 @@ import yaml
 import Queue
 
 import boto3 as boto
+from friend.strings import random_alphanum, snake_to_pascal_obj
+from friend.utils import cached
 import jinja2 as j
 import pkg_resources as pr
 import voluptuous as v
@@ -84,45 +83,14 @@ class Spinner(t.Thread):
         self.q.put(None)
 
 
-def cached(func):
-    cache = {}
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        key = func.__name__ + str(sorted(args)) + str(sorted(kwargs.items()))
-        if key not in cache:
-            cache[key] = func(*args, **kwargs)
-        return cache[key]
-    return wrapper
-
-
 @cached
 def ec2_connect():
     session = boto.Session()
     return session.resource('ec2')
 
 
-def snake_to_camel(s):
-    return ''.join(part[0].capitalize() + part[1:] for part in s.split('_'))
-
-
-def camelify(spec):
-    if type(spec) == list:
-        return [camelify(m) for m in spec]
-    elif type(spec) == dict:
-        return {snake_to_camel(k): camelify(v) for k, v in spec.items()}
-    else:
-        return spec
-
-
-def random_string(length=10):
-    letters = string.ascii_letters + string.digits
-    end = len(letters)
-    return ''.join(letters[random.randrange(0, end)] for _ in range(length))
-
-
 def gen_keyname():
-    return 'bossimage-' + random_string()
+    return 'bossimage-' + random_alphanum(10)
 
 
 def user_data(config):
@@ -287,7 +255,9 @@ def create_instance(config, image_id, keyname):
             DeviceIndex=0,
             AssociatePublicIpAddress=config['associate_public_ip_address'],
         )],
-        BlockDeviceMappings=camelify(config['block_device_mappings']),
+        BlockDeviceMappings=snake_to_pascal_obj(
+            config['block_device_mappings'],
+        ),
         UserData=user_data(config),
     )
     if config['subnet']:
