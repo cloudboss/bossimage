@@ -20,6 +20,7 @@
 import os
 import StringIO
 
+from friend.strings import random_alphanum
 import mock
 from nose.tools import assert_equal, assert_raises, assert_true
 
@@ -226,7 +227,7 @@ def test_load_config_minimal():
 
 
 def test_load_config_not_found():
-    nosuchfile = bc.random_string(100)
+    nosuchfile = random_alphanum(100)
 
     with assert_raises(bc.ConfigurationError) as r:
         bc.load_config(nosuchfile)

@@ -44,6 +44,7 @@ config = {
         'ansible',
         'boto3',
         'click',
+        'friend',
         'pywinrm',
         'voluptuous',
     ],
