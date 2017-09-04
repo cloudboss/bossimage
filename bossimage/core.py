@@ -199,32 +199,6 @@ def write_playbook(playbook, config):
         )]))
 
 
-def write_files(instance, files, ec2_instance, keyname, config, password):
-    if config['associate_public_ip_address']:
-        ip_address = ec2_instance.public_ip_address
-    else:
-        ip_address = ec2_instance.private_ip_address
-
-    files = instance_files(instance)
-
-    with open(files['state'], 'w') as f:
-        f.write(yaml.safe_dump(dict(
-            keyname=keyname,
-            build=dict(
-                id=ec2_instance.id,
-                ip=ip_address
-            )
-        )))
-
-    with load_inventory(instance) as inventory:
-        inventory['build'] = inventory_entry(
-            ip_address, files['keyfile'], config['username'],
-            password, config['port'], config['connection']
-        )
-
-    write_playbook(files['playbook'], config)
-
-
 def get_windows_password(ec2_instance, keyfile):
     with Spinner('password'):
         encrypted_password = wait_for_password(ec2_instance)
@@ -296,7 +270,7 @@ def wait_for_password(ec2_instance):
             time.sleep(15)
 
 
-def wait_for_connection(addr, port, inventory, group, connection, end):
+def wait_for_connection(addr, port, inventory, group, end):
     env = os.environ.copy()
     env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
 
@@ -360,8 +334,8 @@ def make_build(ec2, instance, config, verbosity):
     with Spinner('connection to {}:{}'.format(
             state['build']['ip'], config['port'])):
         wait_for_connection(
-            state['build']['ip'], config['port'], files['inventory'], 'build',
-            config['connection'], time.time() + config['connection_timeout']
+            state['build']['ip'], config['port'], files['inventory'],
+            'build', time.time() + config['connection_timeout']
         )
 
     if not os.path.exists(files['playbook']):
@@ -398,8 +372,8 @@ def make_test(ec2, instance, config, verbosity):
     with Spinner('connection to {}:{}'.format(
             state['test']['ip'], config['port'])):
         wait_for_connection(
-            state['test']['ip'], config['port'], files['inventory'], 'test',
-            config['connection'], time.time() + config['connection_timeout']
+            state['test']['ip'], config['port'], files['inventory'],
+            'test', time.time() + config['connection_timeout']
         )
 
     return run_ansible(verbosity, files['inventory'], config['playbook'], {},

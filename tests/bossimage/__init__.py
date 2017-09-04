@@ -71,7 +71,7 @@ def create_working_dir():
     pass
 
 
-def wait_for_connection(a, b, c, d, e, f):
+def wait_for_connection(a, b, c, d, e):
     time.sleep(1)
 
 
