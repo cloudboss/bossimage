@@ -270,7 +270,7 @@ def wait_for_password(ec2_instance):
             time.sleep(15)
 
 
-def wait_for_connection(addr, port, inventory, group, connection, end):
+def wait_for_connection(addr, port, inventory, group, end):
     env = os.environ.copy()
     env.update(dict(ANSIBLE_HOST_KEY_CHECKING='False'))
 
@@ -334,8 +334,8 @@ def make_build(ec2, instance, config, verbosity):
     with Spinner('connection to {}:{}'.format(
             state['build']['ip'], config['port'])):
         wait_for_connection(
-            state['build']['ip'], config['port'], files['inventory'], 'build',
-            config['connection'], time.time() + config['connection_timeout']
+            state['build']['ip'], config['port'], files['inventory'],
+            'build', time.time() + config['connection_timeout']
         )
 
     if not os.path.exists(files['playbook']):
@@ -372,8 +372,8 @@ def make_test(ec2, instance, config, verbosity):
     with Spinner('connection to {}:{}'.format(
             state['test']['ip'], config['port'])):
         wait_for_connection(
-            state['test']['ip'], config['port'], files['inventory'], 'test',
-            config['connection'], time.time() + config['connection_timeout']
+            state['test']['ip'], config['port'], files['inventory'],
+            'test', time.time() + config['connection_timeout']
         )
 
     return run_ansible(verbosity, files['inventory'], config['playbook'], {},
