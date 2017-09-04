@@ -25,7 +25,7 @@ import mock
 from nose.tools import assert_equal, assert_raises, assert_true
 
 import bossimage.core as bc
-from tests.bossimage import probe, reset_probes, tempdir
+from tests.bossimage import ec2_connect, probe, reset_probes, tempdir
 
 
 def test_merge_config():
@@ -392,18 +392,19 @@ def test_role_version():
 
 def test_create_instance_tags():
     config = bc.load_config('tests/resources/boss.yml')
+    ec2 = ec2_connect()
 
     # win-2012r2 config has no tags
     reset_probes(['create_instances', 'create_tags'])
     bc.create_instance(
-        config['win-2012r2-default']['build'], 'ami-00000000', 'mykey'
+        ec2, config['win-2012r2-default']['build'], 'ami-00000000', 'mykey'
     )
     assert_equal(probe.called, ['create_instances'])
 
     # amz-2015092 config has tags
     reset_probes(['create_instances', 'create_tags'])
     bc.create_instance(
-        config['amz-2015092-default']['build'], 'ami-00000000', 'mykey'
+        ec2, config['amz-2015092-default']['build'], 'ami-00000000', 'mykey'
     )
     assert_equal(probe.called, ['create_instances', 'create_tags'])
 
@@ -411,12 +412,13 @@ def test_create_instance_tags():
 def test_make_build():
     config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
+    ec2 = ec2_connect()
 
     reset_probes([
         'create_keypair', 'create_instance',
         'write_playbook', 'run_ansible'
     ])
-    bc.make_build(instance, config[instance]['build'], 1)
+    bc.make_build(ec2, instance, config[instance]['build'], 1)
     assert_equal(probe.called, [
         'create_keypair', 'create_instance', 'write_playbook', 'run_ansible'
     ])
@@ -425,40 +427,41 @@ def test_make_build():
     reset_probes([
         'create_keypair', 'create_instance', 'write_playbook', 'run_ansible'
     ])
-    bc.make_build(instance, config[instance]['build'], 1)
+    bc.make_build(ec2, instance, config[instance]['build'], 1)
     assert_equal(probe.called, ['run_ansible'])
 
 
 def test_make_test():
     config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
+    ec2 = ec2_connect()
 
     with assert_raises(bc.StateError) as r:
-        bc.make_test(instance, config[instance]['test'], 1)
+        bc.make_test(ec2, instance, config[instance]['test'], 1)
         assert_equal(
             r.exception.message,
             'Cannot run `make test` before `make image`'
         )
 
-    bc.make_build(instance, config[instance]['build'], 1)
+    bc.make_build(ec2, instance, config[instance]['build'], 1)
 
     # Should get another StateError because `make image` has not been run
     with assert_raises(bc.StateError) as r:
-        bc.make_test(instance, config[instance]['test'], 1)
+        bc.make_test(ec2, instance, config[instance]['test'], 1)
         assert_equal(
             r.exception.message,
             'Cannot run `make test` before `make image`'
         )
 
-    bc.make_image(instance, config[instance]['image'], True)
+    bc.make_image(ec2, instance, config[instance]['image'], True)
 
     reset_probes(['create_instance', 'run_ansible'])
-    bc.make_test(instance, config[instance]['test'], 1)
+    bc.make_test(ec2, instance, config[instance]['test'], 1)
     assert_equal(probe.called, ['create_instance', 'run_ansible'])
 
     # As with `build`, a second run should create no new resources
     reset_probes(['create_instance', 'run_ansible'])
-    bc.make_test(instance, config[instance]['test'], 1)
+    bc.make_test(ec2, instance, config[instance]['test'], 1)
     assert_equal(probe.called, ['run_ansible'])
 
     for f in bc.instance_files(instance).values():
@@ -468,21 +471,22 @@ def test_make_test():
 def test_make_image_wait():
     config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
+    ec2 = ec2_connect()
     wait = True
 
-    bc.make_build(instance, config[instance]['build'], 1)
+    bc.make_build(ec2, instance, config[instance]['build'], 1)
 
-    reset_probes(['ec2_connect', 'wait_for_image'])
-    bc.make_image(instance, config[instance]['image'], wait)
-    assert_equal(probe.called, ['ec2_connect', 'wait_for_image'])
+    reset_probes(['wait_for_image'])
+    bc.make_image(ec2, instance, config[instance]['image'], wait)
+    assert_equal(probe.called, ['wait_for_image'])
 
-    reset_probes(['ec2_connect', 'wait_for_image'])
-    bc.make_image(instance, config[instance]['image'], wait)
+    reset_probes(['wait_for_image'])
+    bc.make_image(ec2, instance, config[instance]['image'], wait)
     assert_equal(probe.called, [])
 
     wait = False
-    reset_probes(['ec2_connect', 'wait_for_image'])
-    bc.make_image(instance, config[instance]['image'], wait)
+    reset_probes(['wait_for_image'])
+    bc.make_image(ec2, instance, config[instance]['image'], wait)
     assert_equal(probe.called, [])
 
     for f in bc.instance_files(instance).values():
@@ -492,14 +496,15 @@ def test_make_image_wait():
 def test_make_image_no_wait():
     config = bc.load_config('tests/resources/boss.yml')
     instance = 'amz-2015092-default'
+    ec2 = ec2_connect()
     wait = False
 
-    bc.make_build(instance, config[instance]['build'], 1)
+    bc.make_build(ec2, instance, config[instance]['build'], 1)
 
-    reset_probes(['ec2_connect', 'wait_for_image'])
-    bc.make_image(instance, config[instance]['image'], wait)
-    assert_equal(probe.called, ['ec2_connect'])
+    reset_probes(['wait_for_image'])
+    bc.make_image(ec2, instance, config[instance]['image'], wait)
+    assert_equal(probe.called, [])
 
-    reset_probes(['ec2_connect', 'wait_for_image'])
-    bc.make_image(instance, config[instance]['image'], wait)
+    reset_probes(['wait_for_image'])
+    bc.make_image(ec2, instance, config[instance]['image'], wait)
     assert_equal(probe.called, [])

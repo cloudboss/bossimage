@@ -21,7 +21,6 @@ import shutil
 import tempfile
 import time
 
-from friend.utils import cached
 from mock import mock
 
 import bossimage.core as bc
@@ -89,7 +88,6 @@ def instance_files(instance):
     )
 
 
-@cached
 def ec2_connect():
     return mock_ec2()
 

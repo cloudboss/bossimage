@@ -33,9 +33,7 @@ import tempfile
 import yaml
 import Queue
 
-import boto3 as boto
 from friend.strings import random_alphanum, snake_to_pascal_obj
-from friend.utils import cached
 import jinja2 as j
 import pkg_resources as pr
 import voluptuous as v
@@ -83,12 +81,6 @@ class Spinner(t.Thread):
         self.q.put(None)
 
 
-@cached
-def ec2_connect():
-    session = boto.Session()
-    return session.resource('ec2')
-
-
 def gen_keyname():
     return 'bossimage-' + random_alphanum(10)
 
@@ -105,8 +97,8 @@ def user_data(config):
     return ud
 
 
-def create_keypair(keyname, keyfile):
-    kp = ec2_connect().create_key_pair(KeyName=keyname)
+def create_keypair(ec2, keyname, keyfile):
+    kp = ec2.create_key_pair(KeyName=keyname)
     print('Created keypair {}'.format(keyname))
 
     with open(keyfile, 'w') as f:
@@ -114,8 +106,8 @@ def create_keypair(keyname, keyfile):
     os.chmod(keyfile, 0600)
 
 
-def tag_instance(tags, instance):
-    ec2_connect().create_tags(
+def tag_instance(ec2, tags, instance):
+    ec2.create_tags(
         Resources=[instance.id],
         Tags=[{'Key': k, 'Value': v} for k, v in tags.items()]
     )
@@ -244,7 +236,7 @@ def get_windows_password(ec2_instance, keyfile):
     return password
 
 
-def create_instance(config, image_id, keyname):
+def create_instance(ec2, config, image_id, keyname):
     instance_params = dict(
         ImageId=image_id,
         InstanceType=config['instance_type'],
@@ -261,24 +253,25 @@ def create_instance(config, image_id, keyname):
         UserData=user_data(config),
     )
     if config['subnet']:
-        subnet_id = subnet_id_for(config['subnet'])
+        subnet_id = subnet_id_for(ec2.subnets, config['subnet'])
         instance_params['NetworkInterfaces'][0]['SubnetId'] = subnet_id
     if config['security_groups']:
-        sg_ids = [sg_id_for(name) for name in config['security_groups']]
+        sg_ids = [sg_id_for(ec2.security_groups, name)
+                  for name in config['security_groups']]
         instance_params['NetworkInterfaces'][0]['Groups'] = sg_ids
     if config['iam_instance_profile']:
         instance_params['IamInstanceProfile'] = {
             'Name': config['iam_instance_profile']
         }
 
-    (ec2_instance,) = ec2_connect().create_instances(**instance_params)
+    (ec2_instance,) = ec2.create_instances(**instance_params)
     print('Created instance {}'.format(ec2_instance.id))
 
     with Spinner('instance', 'to be running'):
         ec2_instance.wait_until_running()
 
     if config['tags']:
-        tag_instance(config['tags'], ec2_instance)
+        tag_instance(ec2, config['tags'], ec2_instance)
 
     ec2_instance.reload()
     return ec2_instance
@@ -330,7 +323,7 @@ def wait_for_connection(addr, port, inventory, group, connection, end):
             time.sleep(15)
 
 
-def make_build(instance, config, verbosity):
+def make_build(ec2, instance, config, verbosity):
     if not os.path.exists('.boss'):
         os.mkdir('.boss')
 
@@ -340,13 +333,16 @@ def make_build(instance, config, verbosity):
     with load_state(instance) as state:
         if 'keyname' not in state:
             keyname = gen_keyname()
-            create_keypair(keyname, keyfile)
+            create_keypair(ec2, keyname, keyfile)
             state['keyname'] = keyname
 
     with load_state(instance) as state:
         if 'build' not in state:
             ec2_instance = create_instance(
-                config, ami_id_for(config['source_ami']), state['keyname']
+                ec2,
+                config,
+                ami_id_for(ec2.images, config['source_ami']),
+                state['keyname'],
             )
             if config['associate_public_ip_address']:
                 ip_address = ec2_instance.public_ip_address
@@ -358,7 +354,7 @@ def make_build(instance, config, verbosity):
             }
 
     ensure_inventory(
-        instance, 'build', config, keyfile,
+        ec2, instance, 'build', config, keyfile,
         state['build']['id'], state['build']['ip'])
 
     with Spinner('connection to {}:{}'.format(
@@ -375,14 +371,14 @@ def make_build(instance, config, verbosity):
                        config['extra_vars'], 'requirements.yml')
 
 
-def make_test(instance, config, verbosity):
+def make_test(ec2, instance, config, verbosity):
     with load_state(instance) as state:
         if 'test' not in state and 'image' not in state:
             raise StateError('Cannot run `make test` before `make image`')
 
         if 'test' not in state:
             ec2_instance = create_instance(
-                config, state['image']['id'], state['keyname']
+                ec2, config, state['image']['id'], state['keyname']
             )
             if config['associate_public_ip_address']:
                 ip_address = ec2_instance.public_ip_address
@@ -396,7 +392,7 @@ def make_test(instance, config, verbosity):
     files = instance_files(instance)
 
     ensure_inventory(
-        instance, 'test', config, files['keyfile'],
+        ec2, instance, 'test', config, files['keyfile'],
         state['test']['id'], state['test']['ip'])
 
     with Spinner('connection to {}:{}'.format(
@@ -410,10 +406,10 @@ def make_test(instance, config, verbosity):
                        'tests/requirements.yml')
 
 
-def ensure_inventory(instance, phase, config, keyfile, ident, ip):
+def ensure_inventory(ec2, instance, phase, config, keyfile, ident, ip):
     with load_inventory(instance) as inventory:
         if phase not in inventory:
-            ec2_instance = ec2_connect().Instance(id=ident)
+            ec2_instance = ec2.Instance(id=ident)
             if config['connection'] == 'winrm':
                 password = get_windows_password(ec2_instance, keyfile)
             else:
@@ -455,14 +451,13 @@ def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
     return ansible_playbook.wait()
 
 
-def make_image(instance, config, wait):
+def make_image(ec2, instance, config, wait):
     with load_state(instance) as state:
         if 'image' in state:
             return
 
         if 'build' not in state:
             raise StateError('Cannot run `make image` before `make build`')
-        ec2 = ec2_connect()
         ec2_instance = ec2.Instance(id=state['build']['id'])
         ec2_instance.load()
 
@@ -485,21 +480,21 @@ def make_image(instance, config, wait):
             wait_for_image(image)
 
 
-def clean_build(instance):
-    clean_instance(instance, 'build')
+def clean_build(ec2, instance):
+    clean_instance(ec2, instance, 'build')
 
 
-def clean_test(instance):
-    clean_instance(instance, 'test')
+def clean_test(ec2, instance):
+    clean_instance(ec2, instance, 'test')
 
 
-def clean_instance(instance, phase):
+def clean_instance(ec2, instance, phase):
     with load_state(instance) as state:
         if phase not in state:
             print('No {} instance found for {}'.format(phase, instance))
             return
 
-        ec2_instance = ec2_connect().Instance(id=state[phase]['id'])
+        ec2_instance = ec2.Instance(id=state[phase]['id'])
         ec2_instance.terminate()
         print('Deleted instance {}'.format(ec2_instance.id))
         del(state[phase])
@@ -509,19 +504,19 @@ def clean_instance(instance, phase):
 
     if 'build' not in state and 'test' not in state:
         with load_state(instance) as state:
-            delete_keypair(state)
+            delete_keypair(ec2, state)
 
     if 'build' not in state and 'image' not in state and 'test' not in state:
         delete_files(instance_files(instance))
 
 
-def clean_image(instance):
+def clean_image(ec2, instance):
     with load_state(instance) as state:
         if 'image' not in state:
             print('No image found for {}'.format(instance))
             return
 
-        (image,) = ec2_connect().images.filter(ImageIds=[state['image']['id']])
+        (image,) = ec2.images.filter(ImageIds=[state['image']['id']])
         image.deregister()
         print('Deregistered image {}'.format(state['image']['id']))
         del(state['image'])
@@ -530,8 +525,8 @@ def clean_image(instance):
         delete_files(instance_files(instance))
 
 
-def delete_keypair(state):
-    kp = ec2_connect().KeyPair(name=state['keyname'])
+def delete_keypair(ec2, state):
+    kp = ec2.KeyPair(name=state['keyname'])
     kp.delete()
     print('Deleted keypair {}'.format(kp.name))
     del(state['keyname'])
@@ -598,26 +593,23 @@ def resource_id_for(collection, collection_desc, name, prefix, flt):
         raise ItemNotFound(desc)
 
 
-def ami_id_for(name):
-    ec2 = ec2_connect()
+def ami_id_for(images, name):
     return resource_id_for(
-        ec2.images, 'image', name, 'ami-',
+        images, 'image', name, 'ami-',
         {'Name': 'name', 'Values': [name]}
     )
 
 
-def sg_id_for(name):
-    ec2 = ec2_connect()
+def sg_id_for(security_groups, name):
     return resource_id_for(
-        ec2.security_groups, 'security group', name, 'sg-',
+        security_groups, 'security group', name, 'sg-',
         {'Name': 'group-name', 'Values': [name]}
     )
 
 
-def subnet_id_for(name):
-    ec2 = ec2_connect()
+def subnet_id_for(subnets, name):
     return resource_id_for(
-        ec2.subnets, 'subnet ', name, 'subnet-',
+        subnets, 'subnet ', name, 'subnet-',
         {'Name': 'tag:Name', 'Values': [name]}
     )
 
