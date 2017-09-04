@@ -199,32 +199,6 @@ def write_playbook(playbook, config):
         )]))
 
 
-def write_files(instance, files, ec2_instance, keyname, config, password):
-    if config['associate_public_ip_address']:
-        ip_address = ec2_instance.public_ip_address
-    else:
-        ip_address = ec2_instance.private_ip_address
-
-    files = instance_files(instance)
-
-    with open(files['state'], 'w') as f:
-        f.write(yaml.safe_dump(dict(
-            keyname=keyname,
-            build=dict(
-                id=ec2_instance.id,
-                ip=ip_address
-            )
-        )))
-
-    with load_inventory(instance) as inventory:
-        inventory['build'] = inventory_entry(
-            ip_address, files['keyfile'], config['username'],
-            password, config['port'], config['connection']
-        )
-
-    write_playbook(files['playbook'], config)
-
-
 def get_windows_password(ec2_instance, keyfile):
     with Spinner('password'):
         encrypted_password = wait_for_password(ec2_instance)
