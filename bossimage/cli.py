@@ -21,10 +21,15 @@ import contextlib
 import json
 import sys
 
+import boto3 as boto
 import click
 
 import bossimage as b
 import bossimage.core as bc
+
+
+def ec2_connect():
+    return boto.Session().resource('ec2')
 
 
 @click.group()
@@ -85,7 +90,8 @@ def make(): pass
 def make_build(instance, verbosity):
     with load_config() as c:
         validate_instance(instance, c)
-        sys.exit(bc.make_build(instance, c[instance]['build'], verbosity))
+        ec2 = ec2_connect()
+        sys.exit(bc.make_build(ec2, instance, c[instance]['build'], verbosity))
 
 
 @make.command('image')
@@ -95,8 +101,9 @@ def make_build(instance, verbosity):
 def make_image(instance, wait):
     with load_config() as c:
         validate_instance(instance, c)
+        ec2 = ec2_connect()
         try:
-            bc.make_image(instance, c[instance]['image'], wait)
+            bc.make_image(ec2, instance, c[instance]['image'], wait)
         except bc.StateError as e:
             click.echo(e, err=True)
             raise click.Abort()
@@ -109,8 +116,11 @@ def make_image(instance, wait):
 def make_test(instance, verbosity):
     with load_config() as c:
         validate_instance(instance, c)
+        ec2 = ec2_connect()
         try:
-            sys.exit(bc.make_test(instance, c[instance]['test'], verbosity))
+            sys.exit(bc.make_test(
+                ec2, instance, c[instance]['test'], verbosity)
+            )
         except bc.StateError as e:
             click.echo(e, err=True)
             raise click.Abort()
@@ -123,19 +133,19 @@ def clean(): pass
 @clean.command('build')
 @click.argument('instance')
 def clean_build(instance):
-    bc.clean_build(instance)
+    bc.clean_build(ec2_connect(), instance)
 
 
 @clean.command('test')
 @click.argument('instance')
 def clean_test(instance):
-    bc.clean_test(instance)
+    bc.clean_test(ec2_connect(), instance)
 
 
 @clean.command('image')
 @click.argument('instance')
 def clean_image(instance):
-    bc.clean_image(instance)
+    bc.clean_image(ec2_connect(), instance)
 
 
 def validate_instance(instance, config):
