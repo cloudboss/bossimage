@@ -632,7 +632,7 @@ def is_virtual_name(s):
 
 
 def is_volume_type(s):
-    if s not in ('gp2', 'io1', 'standard'):
+    if s not in ('standard', 'io1', 'gp2', 'sc1', 'st1'):
         raise invalid('volume_type', s)
     return s
 
