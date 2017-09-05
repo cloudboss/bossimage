@@ -620,19 +620,19 @@ def re_validator(pat, s, kind):
 
 
 def is_subnet_id(s):
-    return re_validator(r'subnet-[0-9a-f]{8}', s, 'subnet_id')
+    return re_validator(r'^subnet-[0-9a-f]{8,}$', s, 'subnet_id')
 
 
 def is_snapshot_id(s):
-    return re_validator(r'snap-[0-9a-f]{8}', s, 'snapshot_id')
+    return re_validator(r'^snap-[0-9a-f]{8,}$', s, 'snapshot_id')
 
 
 def is_virtual_name(s):
-    return re_validator(r'ephemeral\d+', s, 'virtual_name')
+    return re_validator(r'^ephemeral\d+$', s, 'virtual_name')
 
 
 def is_volume_type(s):
-    if s not in ('gp2', 'io1', 'standard'):
+    if s not in ('standard', 'io1', 'gp2', 'sc1', 'st1'):
         raise invalid('volume_type', s)
     return s
 
