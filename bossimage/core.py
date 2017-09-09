@@ -407,7 +407,7 @@ def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
     if os.path.exists(requirements):
         ansible_galaxy_args = [
             'ansible-galaxy', 'install',
-            '-r', 'requirements.yml',
+            '-r', requirements,
             '-p', roles_path,
         ]
         if verbosity:
