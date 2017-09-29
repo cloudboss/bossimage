@@ -526,7 +526,6 @@ def login(instance, config, phase='build'):
     with open(files['state']) as f:
         state = yaml.load(f)
 
-    print('state: {}'.format(state))
     ssh = subprocess.Popen([
         'ssh', '-i', files['keyfile'],
         '-l', config['username'], state[phase]['ip']
