@@ -630,12 +630,6 @@ def is_virtual_name(s):
     return re_validator(r'^ephemeral\d+$', s, 'virtual_name')
 
 
-def is_volume_type(s):
-    if s not in ('standard', 'io1', 'gp2', 'sc1', 'st1'):
-        raise invalid('volume_type', s)
-    return s
-
-
 def validate(doc):
     base = {
         v.Optional('instance_type'): str,
@@ -652,19 +646,7 @@ def validate(doc):
             str,
             {'file': str},
         ),
-        v.Optional('block_device_mappings'): [{
-            v.Required('device_name'): str,
-            'ebs': {
-                'volume_size': int,
-                'volume_type': is_volume_type,
-                'delete_on_termination': bool,
-                'encrypted': bool,
-                'iops': int,
-                'snapshot_id': is_snapshot_id,
-            },
-            'no_device': str,
-            'virtual_name': is_virtual_name,
-        }],
+        v.Optional('block_device_mappings'): [dict],
     }
     defaults = {
         v.Optional('instance_type', default='t2.micro'): str,
@@ -681,19 +663,7 @@ def validate(doc):
             str,
             {'file': str},
         ),
-        v.Optional('block_device_mappings', default=[]): [{
-            v.Required('device_name'): str,
-            'ebs': {
-                'volume_size': int,
-                'volume_type': is_volume_type,
-                'delete_on_termination': bool,
-                'encrypted': bool,
-                'iops': int,
-                'snapshot_id': is_snapshot_id,
-            },
-            'no_device': str,
-            'virtual_name': is_virtual_name,
-        }],
+        v.Optional('block_device_mappings', default=[]): [dict],
     }
     build = base.copy()
     build.update({
