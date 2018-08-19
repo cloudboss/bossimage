@@ -276,28 +276,26 @@ The `defaults` section may contain the following variables.
 
  A map of key/value pairs to be used for tagging the instance.
 
-
 * `user_data` - type: _map_ or _string_, default: `''`
 
  This is the [user data](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html) that will be passed into the EC2 instance. If it is given as a map, then it must have the key `file`, which is the path to a file containing the user data.
 
- Example:
+ If the type is a string, then it is passed verbatim as the user data for the instance.
 
- ```
+ Examples:
+
+```
 defaults:
   user_data:
     file: ./user-data.txt
- ```
+```
 
- If the type is a string, then it is passed verbatim as the user data for the instance.
-
- Example:
-
- ```
- user_data: |
-   #!/bin/sh
-   yum update -y
- ```
+```
+defaults:
+  user_data: |
+    #!/bin/sh
+    yum update -y
+```
 
 * `block_device_mappings` - type: _list_ of _map_, default: `[]`
 
