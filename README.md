@@ -156,7 +156,9 @@ platforms:
     build:
       source_ami: ami-301f6f50
     instance_type: t2.micro
-    username: ubuntu
+    inventory_args:
+      ansible_username: ubuntu
+      ansible_python_interpreter: /usr/bin/python3
     security_groups: [bossimage]
 
 profiles:
@@ -193,8 +195,9 @@ defaults:
 platforms:
   - name: centos-6
     instance_type: t2.micro
-    username: centos
     connection_timeout: 600
+    inventory_args:
+      ansible_user: centos
     build:
       source_ami: 'CentOS Linux 6 x86_64 HVM EBS 1602-74e73035-3435-48d6-88e0-89cc02ad83ee-ami-21e6d54b.3'
     test:
@@ -242,11 +245,11 @@ The `defaults` section may contain the following variables.
 
 * `username` - type: _string_, default: `ec2-user`
 
- The user that Ansible will use to connect to the instance.
+ The user that Ansible will use to connect to the instance. If `inventory_args` is defined, this value will be ignored. `ansible_user` should be put into `inventory_args` instead.
 
 * `connection` - type: _string_, default: `ssh`
 
- The type of connection that Ansible will use, may be either `ssh` or `winrm`.
+ The type of connection that Ansible will use, may be either `ssh` or `winrm`. If `inventory_args` is defined, this value will be ignored. `ansible_connection` should be put into `inventory_args` instead.
 
 * `connection_timeout` - type: _integer_, default: `300`
 
@@ -254,7 +257,7 @@ The `defaults` section may contain the following variables.
 
 * `port` - type: _integer_, default: 22
 
- The port used to connect with Ansible.
+ The port used to connect with Ansible. If `inventory_args` is defined, this value will be ignored. `ansible_port` should be put into `inventory_args` instead.
 
 * `associate_public_ip_address` - type: _bool_, default: `true`
 
@@ -272,32 +275,34 @@ The `defaults` section may contain the following variables.
 
  The name of the IAM instance profile to assign to the instance.
 
+* `inventory_args` - type _map_ of _string_ to _string_
+
+ A map of key/value pairs which will be used for building the Ansible inventory. See [the official Ansible documentation](https://docs.ansible.com/ansible/2.3/intro_inventory.html#list-of-behavioral-inventory-parameters) for more details on available options. If this variable is defined, the `connection`, `username`, and `port` variables will be ignored. Bossimage normally sets `ansible_password` and `ansible_ssh_private_key_file` in the inventory based on runtime generated values, so it is not advised to define them in `inventory_args` unless you have good reason.
+
 * `tags` - type _map_ of _string_ to _string_, default `{}`
 
  A map of key/value pairs to be used for tagging the instance.
-
 
 * `user_data` - type: _map_ or _string_, default: `''`
 
  This is the [user data](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/user-data.html) that will be passed into the EC2 instance. If it is given as a map, then it must have the key `file`, which is the path to a file containing the user data.
 
- Example:
+ If the type is a string, then it is passed verbatim as the user data for the instance.
 
- ```
+ Examples:
+
+```
 defaults:
   user_data:
     file: ./user-data.txt
- ```
+```
 
- If the type is a string, then it is passed verbatim as the user data for the instance.
-
- Example:
-
- ```
- user_data: |
-   #!/bin/sh
-   yum update -y
- ```
+```
+defaults:
+  user_data: |
+    #!/bin/sh
+    yum update -y
+```
 
 * `block_device_mappings` - type: _list_ of _map_, default: `[]`
 

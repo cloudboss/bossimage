@@ -1,4 +1,4 @@
-# Copyright 2017 Joseph Wright <joseph@cloudboss.co>
+# Copyright 2018 Joseph Wright <joseph@cloudboss.co>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -18,8 +18,10 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 import os
+import random
 import StringIO
 
+from friend.net import random_ipv4
 from friend.strings import random_alphanum
 import mock
 from nose.tools import assert_equal, assert_raises, assert_true
@@ -282,47 +284,113 @@ def test_config_env_vars():
 
 
 def make_inventory_string():
-    args = ['rockafella.pem', 'ec2-user', None, '22', 'ssh']
+    inventory_args = {
+        'ansible_user': 'ec2-user',
+        'ansible_port': '22',
+        'ansible_connection': 'ssh',
+        'ansible_ssh_private_key_file': 'rockafella.pem',
+    }
     return '''
     [build]
     {}
     [test]
     {}
     '''.format(
-        bc.inventory_entry(*['10.10.10.250']+args),
-        bc.inventory_entry(*['10.10.10.251']+args),
+        bc.format_inventory_entry('10.10.10.250', inventory_args),
+        bc.format_inventory_entry('10.10.10.251', inventory_args)
     )
 
 
 def test_inventory_entry():
-    gen_entry = bc.inventory_entry(
-        '10.10.10.250', 'rockafella.pem', 'ec2-user', None, '22', 'ssh'
+    username = random_alphanum(10)
+    password = random_alphanum(10)
+    connection = random.choice(('ssh', 'winrm'))
+    key = '{}.pem'.format(random_alphanum(10))
+    ip = str(random_ipv4())
+    cases = (
+        (
+            {
+                'username': username,
+                'port': '22',
+                'connection': 'ssh',
+            },
+            (ip, key, None),
+            {
+                ip: {
+                    'ansible_ssh_private_key_file': key,
+                    'ansible_user': username,
+                    'ansible_port': '22',
+                    'ansible_connection': 'ssh',
+                }
+            }
+        ),
+        (
+            {
+                'username': username,
+                'port': '5985',
+                'connection': 'winrm',
+            },
+            (ip, key, password),
+            {
+                ip: {
+                    'ansible_ssh_private_key_file': key,
+                    'ansible_user': username,
+                    'ansible_password': password,
+                    'ansible_port': '5985',
+                    'ansible_connection': 'winrm',
+                }
+            }
+        ),
+        (
+            {
+                'username': username,
+                'port': '123',
+                'connection': 'meep',
+                # inventory_args overrides other connection variables
+                'inventory_args': {
+                    'ansible_user': 'override',
+                    'ansible_port': '5985',
+                    'ansible_connection': 'winrm',
+                }
+            },
+            (ip, key, password),
+            {
+                ip: {
+                    'ansible_ssh_private_key_file': key,
+                    'ansible_user': 'override',
+                    'ansible_password': password,
+                    'ansible_port': '5985',
+                    'ansible_connection': 'winrm',
+                }
+            }
+        ),
     )
-    expected_entry = '10.10.10.250 ' \
-                     'ansible_ssh_private_key_file=rockafella.pem ' \
-                     'ansible_user=ec2-user ' \
-                     'ansible_password=None ' \
-                     'ansible_port=22 ' \
-                     'ansible_connection=ssh'
-    assert_equal(gen_entry, expected_entry)
+    for config, partial_args, expected_result in cases:
+        args = partial_args + (config,)
+        generated_entry = bc.inventory_entry(*args)
+        assert_equal(generated_entry, expected_result)
 
 
 def test_parse_inventory():
     fdesc = StringIO.StringIO(make_inventory_string())
 
     expected_result = {
-        'build': '10.10.10.250 '
-                 'ansible_ssh_private_key_file=rockafella.pem '
-                 'ansible_user=ec2-user '
-                 'ansible_password=None '
-                 'ansible_port=22 '
-                 'ansible_connection=ssh',
-        'test': '10.10.10.251 '
-                'ansible_ssh_private_key_file=rockafella.pem '
-                'ansible_user=ec2-user '
-                'ansible_password=None '
-                'ansible_port=22 '
-                'ansible_connection=ssh',
+        'build': {
+            '10.10.10.250': {
+                'ansible_ssh_private_key_file': 'rockafella.pem',
+                'ansible_user': 'ec2-user',
+                'ansible_port': '22',
+                'ansible_connection': 'ssh',
+            },
+        },
+        'test': {
+            '10.10.10.251': {
+                'ansible_ssh_private_key_file': 'rockafella.pem',
+                'ansible_user': 'ec2-user',
+                'ansible_port': '22',
+                'ansible_connection': 'ssh',
+            }
+        }
     }
     actual_result = bc.parse_inventory(fdesc)
     assert_equal(actual_result, expected_result)
@@ -331,7 +399,12 @@ def test_parse_inventory():
 def test_load_inventory():
     instance = 'centos-7-default'
     inventory_file = '{}/{}.inventory'.format(tempdir, instance)
-    args = ['rockafella.pem', 'ec2-user', None, '22', 'ssh']
+    config = {
+        'username': 'ec2-user',
+        'port': '22',
+        'connection': 'ssh',
+    }
+    args = ['rockafella.pem', None, config]
     build_entry = bc.inventory_entry(*['10.10.10.250']+args)
     test_entry = bc.inventory_entry(*['10.10.10.251']+args)
 

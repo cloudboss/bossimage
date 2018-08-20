@@ -1,4 +1,4 @@
-# Copyright 2017 Joseph Wright <joseph@cloudboss.co>
+# Copyright 2018 Joseph Wright <joseph@cloudboss.co>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -90,7 +90,8 @@ def user_data(config):
         with open(config['user_data']['file']) as f:
             return f.read()
 
-    if not config['user_data'] and config['connection'] == 'winrm':
+    connection = get_connection(config)
+    if not config['user_data'] and connection == 'winrm':
         ud = pr.resource_string('bossimage', 'win-userdata.txt')
     else:
         ud = config['user_data']
@@ -153,20 +154,49 @@ def parse_inventory(fdesc):
             section = section_match.groupdict()['section']
             continue
 
-        inventory[section] = line.strip()
+        parts = re.split('\s*', line.strip())
+        ip = parts[0]
+        args = {k: v for k, v in [p.split('=') for p in parts[1:]]}
+        inventory.setdefault(section, {})
+        inventory[section][ip] = args
     return inventory
 
 
-def inventory_entry(ip, keyfile, username, password, port, connection):
-    entry = '{} ' \
-        'ansible_ssh_private_key_file={} ' \
-        'ansible_user={} ' \
-        'ansible_password={} ' \
-        'ansible_port={} ' \
-        'ansible_connection={}'.format(
-            ip, keyfile, username, password, port, connection
-        )
-    return entry
+def inventory_entry(ip, keyfile, password, config):
+    inventory_args = config.get('inventory_args')
+    if inventory_args:
+        if 'ansible_ssh_private_key_file' not in inventory_args:
+            inventory_args['ansible_ssh_private_key_file'] = keyfile
+        if password and 'ansible_password' not in inventory_args:
+            inventory_args['ansible_password'] = password
+    else:
+        inventory_args = {
+            'ansible_ssh_private_key_file': keyfile,
+            'ansible_user': config['username'],
+            'ansible_port': config['port'],
+            'ansible_connection': config['connection'],
+        }
+        if password:
+            inventory_args['ansible_password'] = password
+
+    return {ip: inventory_args}
+
+
+def format_inventory_entry(host, inventory_args):
+    fmt = ' '.join('{}={}'.format(k, v) for k, v in inventory_args.items())
+    return '{} {}'.format(host, fmt)
+
+
+def write_inventory(path, inventory):
+    inventory_string = ''
+    for section, hosts in inventory.items():
+        inventory_string += '[{}]\n'.format(section)
+        for host, inventory_args in hosts.items():
+            fmt = format_inventory_entry(host, inventory_args)
+            inventory_string += '{}\n'.format(fmt)
+    with open(path, 'w') as f:
+        f.write(inventory_string)
+    os.chmod(path, 0600)
 
 
 @contextlib.contextmanager
@@ -181,15 +211,6 @@ def load_inventory(instance):
     write_inventory(files['inventory'], inventory)
 
 
-def write_inventory(path, inventory):
-    template = '[{}]\n{}'
-    inventory_string = '\n'.join(template.format(grp, host)
-                                 for grp, host in inventory.items())
-    with open(path, 'w') as f:
-        f.write(inventory_string)
-    os.chmod(path, 0600)
-
-
 def write_playbook(playbook, config):
     with open(playbook, 'w') as f:
         f.write(yaml.safe_dump([dict(
@@ -197,6 +218,15 @@ def write_playbook(playbook, config):
             become=config['become'],
             roles=[role_name()],
         )]))
+
+
+def get_connection(config):
+    inventory_args = config.get('inventory_args')
+    if inventory_args:
+        connection = inventory_args.get('ansible_connection', 'ssh')
+    else:
+        connection = config['connection']
+    return connection
 
 
 def get_windows_password(ec2_instance, keyfile):
@@ -384,15 +414,14 @@ def ensure_inventory(ec2, instance, phase, config, keyfile, ident, ip):
     with load_inventory(instance) as inventory:
         if phase not in inventory:
             ec2_instance = ec2.Instance(id=ident)
-            if config['connection'] == 'winrm':
+
+            connection = get_connection(config)
+            if connection == 'winrm':
                 password = get_windows_password(ec2_instance, keyfile)
             else:
                 password = None
 
-            inventory[phase] = inventory_entry(
-                ip, keyfile, config['username'],
-                password, config['port'], config['connection']
-            )
+            inventory[phase] = inventory_entry(ip, keyfile, password, config)
 
 
 def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
@@ -630,18 +659,13 @@ def is_virtual_name(s):
     return re_validator(r'^ephemeral\d+$', s, 'virtual_name')
 
 
-def is_volume_type(s):
-    if s not in ('standard', 'io1', 'gp2', 'sc1', 'st1'):
-        raise invalid('volume_type', s)
-    return s
-
-
 def validate(doc):
     base = {
         v.Optional('instance_type'): str,
         v.Optional('username'): str,
         v.Optional('connection'): v.Or('ssh', 'winrm'),
         v.Optional('connection_timeout'): int,
+        v.Optional('inventory_args'): {str: str},
         v.Optional('port'): int,
         v.Optional('associate_public_ip_address'): bool,
         v.Optional('subnet'): str,
@@ -652,23 +676,12 @@ def validate(doc):
             str,
             {'file': str},
         ),
-        v.Optional('block_device_mappings'): [{
-            v.Required('device_name'): str,
-            'ebs': {
-                'volume_size': int,
-                'volume_type': is_volume_type,
-                'delete_on_termination': bool,
-                'encrypted': bool,
-                'iops': int,
-                'snapshot_id': is_snapshot_id,
-            },
-            'no_device': str,
-            'virtual_name': is_virtual_name,
-        }],
+        v.Optional('block_device_mappings'): [dict],
     }
     defaults = {
         v.Optional('instance_type', default='t2.micro'): str,
         v.Optional('username', default='ec2-user'): str,
+        v.Optional('inventory_args'): {str: str},
         v.Optional('connection', default='ssh'): v.Or('ssh', 'winrm'),
         v.Optional('connection_timeout', default=600): int,
         v.Optional('port', default=22): int,
@@ -681,19 +694,7 @@ def validate(doc):
             str,
             {'file': str},
         ),
-        v.Optional('block_device_mappings', default=[]): [{
-            v.Required('device_name'): str,
-            'ebs': {
-                'volume_size': int,
-                'volume_type': is_volume_type,
-                'delete_on_termination': bool,
-                'encrypted': bool,
-                'iops': int,
-                'snapshot_id': is_snapshot_id,
-            },
-            'no_device': str,
-            'virtual_name': is_virtual_name,
-        }],
+        v.Optional('block_device_mappings', default=[]): [dict],
     }
     build = base.copy()
     build.update({
