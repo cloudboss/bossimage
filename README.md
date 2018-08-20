@@ -157,7 +157,7 @@ platforms:
       source_ami: ami-301f6f50
     instance_type: t2.micro
     inventory_args:
-      ansible_username: ubuntu
+      ansible_user: ubuntu
       ansible_python_interpreter: /usr/bin/python3
     security_groups: [bossimage]
 
@@ -245,11 +245,11 @@ The `defaults` section may contain the following variables.
 
 * `username` - type: _string_, default: `ec2-user`
 
- The user that Ansible will use to connect to the instance. If `inventory_args` is defined, this value will be ignored. `ansible_user` should be put into `inventory_args` instead.
+ The user that Ansible will use to connect to the instance. If `inventory_args` is defined, this value will be ignored, and `ansible_user` should be put into `inventory_args` instead.
 
 * `connection` - type: _string_, default: `ssh`
 
- The type of connection that Ansible will use, may be either `ssh` or `winrm`. If `inventory_args` is defined, this value will be ignored. `ansible_connection` should be put into `inventory_args` instead.
+ The type of connection that Ansible will use, may be either `ssh` or `winrm`. If `inventory_args` is defined, this value will be ignored, and `ansible_connection` should be put into `inventory_args` instead.
 
 * `connection_timeout` - type: _integer_, default: `300`
 
@@ -257,7 +257,7 @@ The `defaults` section may contain the following variables.
 
 * `port` - type: _integer_, default: 22
 
- The port used to connect with Ansible. If `inventory_args` is defined, this value will be ignored. `ansible_port` should be put into `inventory_args` instead.
+ The port used to connect with Ansible. If `inventory_args` is defined, this value will be ignored, and `ansible_port` should be put into `inventory_args` instead.
 
 * `associate_public_ip_address` - type: _bool_, default: `true`
 
@@ -277,7 +277,9 @@ The `defaults` section may contain the following variables.
 
 * `inventory_args` - type _map_ of _string_ to _string_
 
- A map of key/value pairs which will be used for building the Ansible inventory. See [the official Ansible documentation](https://docs.ansible.com/ansible/2.3/intro_inventory.html#list-of-behavioral-inventory-parameters) for more details on available options. If this variable is defined, the `connection`, `username`, and `port` variables will be ignored. Bossimage normally sets `ansible_password` and `ansible_ssh_private_key_file` in the inventory based on runtime generated values, so it is not advised to define them in `inventory_args` unless you have good reason.
+ A map of key/value pairs which will be used for building the Ansible inventory. See [the official Ansible documentation](https://docs.ansible.com/ansible/2.3/intro_inventory.html#list-of-behavioral-inventory-parameters) for more details on available options. If this variable is defined, the `connection`, `username`, and `port` variables will be ignored if used, and should be replaced with inventory arguments `ansible_connection`, `ansible_user`, and `ansible_port`, respectively.
+
+ Note: Bossimage normally sets `ansible_password` and `ansible_ssh_private_key_file` in the inventory based on runtime generated values, so it is not advised to define them in `inventory_args` unless you have good reason.
 
 * `tags` - type _map_ of _string_ to _string_, default `{}`
 
