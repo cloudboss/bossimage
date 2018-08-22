@@ -225,9 +225,9 @@ platforms:
     build:
       source_ami: ami-2d360152
     inventory_args:
-	  ansible_connection: winrm
-	  ansible_port: 5985
-	  ansible_user: Administrator
+      ansible_connection: winrm
+      ansible_port: 5985
+      ansible_user: Administrator
     image:
       ami_name: '%(role)s-%(profile)s-%(version)s-%(platform)s'
     tags:
