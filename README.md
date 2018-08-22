@@ -221,6 +221,19 @@ platforms:
       Billing: xyz
       Description: Amazon Linux 201509 Build Instance
 
+  - name: win-2016
+    build:
+      source_ami: ami-2d360152
+    inventory_args:
+	  ansible_connection: winrm
+	  ansible_port: 5985
+	  ansible_user: Administrator
+    image:
+      ami_name: '%(role)s-%(profile)s-%(version)s-%(platform)s'
+    tags:
+      Billing: xyz
+      Description: Windows Server 2016 Build Instance
+
 profiles:
   - name: default
   - name: nginx
