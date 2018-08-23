@@ -168,10 +168,9 @@ def parse_inventory(fdesc):
 def inventory_entry(ip, keyfile, password, config):
     inventory_args = config.get('inventory_args')
     if inventory_args:
-        if 'ansible_ssh_private_key_file' not in inventory_args:
-            inventory_args['ansible_ssh_private_key_file'] = keyfile
-        if password and 'ansible_password' not in inventory_args:
-            inventory_args['ansible_password'] = password
+        inventory_args.setdefault('ansible_ssh_private_key_file', keyfile)
+        if password:
+            inventory_args.setdefault('ansible_password', password)
     else:
         inventory_args = {
             'ansible_ssh_private_key_file': keyfile,
