@@ -224,6 +224,7 @@ platforms:
   - name: win-2016
     build:
       source_ami: ami-2d360152
+      become: false
     inventory_args:
       ansible_connection: winrm
       ansible_port: 5985
