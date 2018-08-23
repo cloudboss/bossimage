@@ -224,6 +224,7 @@ platforms:
   - name: win-2016
     build:
       source_ami: ami-2d360152
+      become: false
     inventory_args:
       ansible_connection: winrm
       ansible_port: 5985
@@ -262,7 +263,7 @@ The `defaults` section may contain the following variables.
 
 * `connection` - type: _string_, default: `ssh`
 
- The type of connection that Ansible will use, may be either `ssh` or `winrm`. If `inventory_args` is defined, this value will be ignored, and `ansible_connection` should be put into `inventory_args` instead.
+ The type of [connection that Ansible will use](https://docs.ansible.com/ansible/2.6/plugins/connection.html). If `inventory_args` is defined, this value will be ignored, and `ansible_connection` should be put into `inventory_args` instead. Note: Bossimage is known to work for `ssh` and `winrm` connections, but other types may need additional testing and development.
 
 * `connection_timeout` - type: _integer_, default: `300`
 

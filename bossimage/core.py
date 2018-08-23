@@ -24,7 +24,6 @@ import itertools
 import json
 import os
 import re
-import socket
 import subprocess
 import sys
 import threading as t
@@ -37,6 +36,11 @@ from friend.strings import random_alphanum, snake_to_pascal_obj
 import jinja2 as j
 import pkg_resources as pr
 import voluptuous as v
+
+
+DEFAULT_ANSIBLE_USER = 'ec2-user'
+DEFAULT_ANSIBLE_PORT = 22
+DEFAULT_ANSIBLE_CONNECTION = 'ssh'
 
 
 class ConnectionTimeout(Exception):
@@ -125,8 +129,7 @@ def role_version():
         if os.path.exists('.role-version'):
             with open('.role-version') as f:
                 return f.read().strip()
-        else:
-            return 'unset'
+        return 'unset'
     env_version = os.getenv('BI_ROLE_VERSION')
     return env_version if env_version else file_version()
 
@@ -165,10 +168,13 @@ def parse_inventory(fdesc):
 def inventory_entry(ip, keyfile, password, config):
     inventory_args = config.get('inventory_args')
     if inventory_args:
-        if 'ansible_ssh_private_key_file' not in inventory_args:
-            inventory_args['ansible_ssh_private_key_file'] = keyfile
-        if password and 'ansible_password' not in inventory_args:
-            inventory_args['ansible_password'] = password
+        inventory_args.setdefault('ansible_ssh_private_key_file', keyfile)
+        inventory_args.setdefault('ansible_user', DEFAULT_ANSIBLE_USER)
+        inventory_args.setdefault('ansible_port', DEFAULT_ANSIBLE_PORT)
+        inventory_args.setdefault('ansible_connection',
+                                  DEFAULT_ANSIBLE_CONNECTION)
+        if password:
+            inventory_args.setdefault('ansible_password', password)
     else:
         inventory_args = {
             'ansible_ssh_private_key_file': keyfile,
@@ -223,7 +229,8 @@ def write_playbook(playbook, config):
 def get_connection(config):
     inventory_args = config.get('inventory_args')
     if inventory_args:
-        connection = inventory_args.get('ansible_connection', 'ssh')
+        connection = inventory_args.get('ansible_connection',
+                                        DEFAULT_ANSIBLE_CONNECTION)
     else:
         connection = config['connection']
     return connection
@@ -309,11 +316,6 @@ def wait_for_connection(addr, port, inventory, group, end):
             message = 'Timeout while connecting to {}:{}'.format(addr, port)
             raise ConnectionTimeout(message)
         try:
-            # First check if port is open.
-            socket.create_connection((addr, port), 1)
-
-            # We didn't raise an exception, so port is open.
-            # Now check if we can actually log in.
             with open('/dev/null', 'wb') as devnull:
                 ret = subprocess.call([
                     'ansible', group,
@@ -328,6 +330,8 @@ def wait_for_connection(addr, port, inventory, group, end):
 
 
 def make_build(ec2, instance, config, verbosity):
+    phase = 'build'
+
     if not os.path.exists('.boss'):
         os.mkdir('.boss')
 
@@ -341,7 +345,7 @@ def make_build(ec2, instance, config, verbosity):
             state['keyname'] = keyname
 
     with load_state(instance) as state:
-        if 'build' not in state:
+        if phase not in state:
             ec2_instance = create_instance(
                 ec2,
                 config,
@@ -352,20 +356,24 @@ def make_build(ec2, instance, config, verbosity):
                 ip_address = ec2_instance.public_ip_address
             else:
                 ip_address = ec2_instance.private_ip_address
-            state['build'] = {
+            state[phase] = {
                 'id': ec2_instance.id,
                 'ip': ip_address,
             }
 
     ensure_inventory(
-        ec2, instance, 'build', config, keyfile,
-        state['build']['id'], state['build']['ip'])
+        ec2, instance, phase, config, keyfile,
+        state[phase]['id'], state[phase]['ip'])
+
+    with load_inventory(instance) as inventory:
+        for entry in inventory[phase]:
+            port = inventory[phase][entry]['ansible_port']
 
     with Spinner('connection to {}:{}'.format(
-            state['build']['ip'], config['port'])):
+            state[phase]['ip'], port)):
         wait_for_connection(
-            state['build']['ip'], config['port'], files['inventory'],
-            'build', time.time() + config['connection_timeout']
+            state[phase]['ip'], port, files['inventory'],
+            phase, time.time() + config['connection_timeout']
         )
 
     if not os.path.exists(files['playbook']):
@@ -376,11 +384,13 @@ def make_build(ec2, instance, config, verbosity):
 
 
 def make_test(ec2, instance, config, verbosity):
+    phase = 'test'
+
     with load_state(instance) as state:
-        if 'test' not in state and 'image' not in state:
+        if phase not in state and 'image' not in state:
             raise StateError('Cannot run `make test` before `make image`')
 
-        if 'test' not in state:
+        if phase not in state:
             ec2_instance = create_instance(
                 ec2, config, state['image']['id'], state['keyname']
             )
@@ -388,7 +398,7 @@ def make_test(ec2, instance, config, verbosity):
                 ip_address = ec2_instance.public_ip_address
             else:
                 ip_address = ec2_instance.private_ip_address
-            state['test'] = {
+            state[phase] = {
                 'id': ec2_instance.id,
                 'ip': ip_address,
             }
@@ -396,14 +406,14 @@ def make_test(ec2, instance, config, verbosity):
     files = instance_files(instance)
 
     ensure_inventory(
-        ec2, instance, 'test', config, files['keyfile'],
-        state['test']['id'], state['test']['ip'])
+        ec2, instance, phase, config, files['keyfile'],
+        state[phase]['id'], state[phase]['ip'])
 
     with Spinner('connection to {}:{}'.format(
-            state['test']['ip'], config['port'])):
+            state[phase]['ip'], config['port'])):
         wait_for_connection(
-            state['test']['ip'], config['port'], files['inventory'],
-            'test', time.time() + config['connection_timeout']
+            state[phase]['ip'], config['port'], files['inventory'],
+            phase, time.time() + config['connection_timeout']
         )
 
     return run_ansible(verbosity, files['inventory'], config['playbook'], {},
@@ -455,8 +465,10 @@ def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
 
 
 def make_image(ec2, instance, config, wait):
+    phase = 'image'
+
     with load_state(instance) as state:
-        if 'image' in state:
+        if phase in state:
             return
 
         if 'build' not in state:
@@ -476,10 +488,10 @@ def make_image(ec2, instance, config, wait):
         image = ec2_instance.create_image(Name=image_name)
         print('Created image {} with name {}'.format(image.id, image_name))
 
-        state['image'] = {'id': image.id}
+        state[phase] = {'id': image.id}
 
     if wait:
-        with Spinner('image'):
+        with Spinner(phase):
             wait_for_image(image)
 
 
@@ -660,12 +672,12 @@ def is_virtual_name(s):
 
 
 def validate(doc):
-    base = {
+    base = v.Schema({
         v.Optional('instance_type'): str,
         v.Optional('username'): str,
-        v.Optional('connection'): v.Or('ssh', 'winrm'),
+        v.Optional('connection'): str,
         v.Optional('connection_timeout'): int,
-        v.Optional('inventory_args'): {str: str},
+        v.Optional('inventory_args'): {str: v.Or(str, int, bool)},
         v.Optional('port'): int,
         v.Optional('associate_public_ip_address'): bool,
         v.Optional('subnet'): str,
@@ -677,14 +689,13 @@ def validate(doc):
             {'file': str},
         ),
         v.Optional('block_device_mappings'): [dict],
-    }
+    })
     defaults = {
         v.Optional('instance_type', default='t2.micro'): str,
-        v.Optional('username', default='ec2-user'): str,
-        v.Optional('inventory_args'): {str: str},
-        v.Optional('connection', default='ssh'): v.Or('ssh', 'winrm'),
+        v.Optional('username', default=DEFAULT_ANSIBLE_USER): str,
+        v.Optional('connection', default=DEFAULT_ANSIBLE_CONNECTION): str,
         v.Optional('connection_timeout', default=600): int,
-        v.Optional('port', default=22): int,
+        v.Optional('port', default=DEFAULT_ANSIBLE_PORT): int,
         v.Optional('associate_public_ip_address', default=True): bool,
         v.Optional('subnet', default=''): str,
         v.Optional('security_groups', default=[]): [str],
@@ -696,8 +707,7 @@ def validate(doc):
         ),
         v.Optional('block_device_mappings', default=[]): [dict],
     }
-    build = base.copy()
-    build.update({
+    build = base.extend({
         v.Required('source_ami'): str,
         v.Optional('become', default=True): bool,
         v.Optional('extra_vars', default={}): dict,
@@ -705,13 +715,11 @@ def validate(doc):
     image = {
         v.Optional('ami_name'): str,
     }
-    test = base.copy()
-    test.update({
+    test = base.extend({
         v.Optional('playbook', default='tests/test.yml'): str
     })
-    platform = base.copy()
     ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s' # noqa
-    platform.update({
+    platform = base.extend({
         v.Required('name'): str,
         v.Required('build'): build,
         v.Optional('image', default={'ami_name': ami_name}): image,
