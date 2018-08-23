@@ -675,7 +675,7 @@ def validate(doc):
     base = v.Schema({
         v.Optional('instance_type'): str,
         v.Optional('username'): str,
-        v.Optional('connection'): v.Or('ssh', 'winrm'),
+        v.Optional('connection'): str,
         v.Optional('connection_timeout'): int,
         v.Optional('inventory_args'): {str: v.Or(str, int, bool)},
         v.Optional('port'): int,
@@ -693,8 +693,7 @@ def validate(doc):
     defaults = {
         v.Optional('instance_type', default='t2.micro'): str,
         v.Optional('username', default=DEFAULT_ANSIBLE_USER): str,
-        v.Optional('connection',
-                   default=DEFAULT_ANSIBLE_CONNECTION): v.Or('ssh', 'winrm'),
+        v.Optional('connection', default=DEFAULT_ANSIBLE_CONNECTION): str,
         v.Optional('connection_timeout', default=600): int,
         v.Optional('port', default=DEFAULT_ANSIBLE_PORT): int,
         v.Optional('associate_public_ip_address', default=True): bool,
