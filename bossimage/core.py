@@ -330,6 +330,8 @@ def wait_for_connection(addr, port, inventory, group, end):
 
 
 def make_build(ec2, instance, config, verbosity):
+    phase = 'build'
+
     if not os.path.exists('.boss'):
         os.mkdir('.boss')
 
@@ -343,7 +345,7 @@ def make_build(ec2, instance, config, verbosity):
             state['keyname'] = keyname
 
     with load_state(instance) as state:
-        if 'build' not in state:
+        if phase not in state:
             ec2_instance = create_instance(
                 ec2,
                 config,
@@ -354,24 +356,24 @@ def make_build(ec2, instance, config, verbosity):
                 ip_address = ec2_instance.public_ip_address
             else:
                 ip_address = ec2_instance.private_ip_address
-            state['build'] = {
+            state[phase] = {
                 'id': ec2_instance.id,
                 'ip': ip_address,
             }
 
     ensure_inventory(
-        ec2, instance, 'build', config, keyfile,
-        state['build']['id'], state['build']['ip'])
+        ec2, instance, phase, config, keyfile,
+        state[phase]['id'], state[phase]['ip'])
 
     with load_inventory(instance) as inventory:
         for entry in inventory[phase]:
             port = inventory[phase][entry]['ansible_port']
 
     with Spinner('connection to {}:{}'.format(
-            state['build']['ip'], config['port'])):
+            state[phase]['ip'], port)):
         wait_for_connection(
-            state['build']['ip'], config['port'], files['inventory'],
-            'build', time.time() + config['connection_timeout']
+            state[phase]['ip'], port, files['inventory'],
+            phase, time.time() + config['connection_timeout']
         )
 
     if not os.path.exists(files['playbook']):
@@ -382,11 +384,13 @@ def make_build(ec2, instance, config, verbosity):
 
 
 def make_test(ec2, instance, config, verbosity):
+    phase = 'test'
+
     with load_state(instance) as state:
-        if 'test' not in state and 'image' not in state:
+        if phase not in state and 'image' not in state:
             raise StateError('Cannot run `make test` before `make image`')
 
-        if 'test' not in state:
+        if phase not in state:
             ec2_instance = create_instance(
                 ec2, config, state['image']['id'], state['keyname']
             )
@@ -394,7 +398,7 @@ def make_test(ec2, instance, config, verbosity):
                 ip_address = ec2_instance.public_ip_address
             else:
                 ip_address = ec2_instance.private_ip_address
-            state['test'] = {
+            state[phase] = {
                 'id': ec2_instance.id,
                 'ip': ip_address,
             }
@@ -402,14 +406,14 @@ def make_test(ec2, instance, config, verbosity):
     files = instance_files(instance)
 
     ensure_inventory(
-        ec2, instance, 'test', config, files['keyfile'],
-        state['test']['id'], state['test']['ip'])
+        ec2, instance, phase, config, files['keyfile'],
+        state[phase]['id'], state[phase]['ip'])
 
     with Spinner('connection to {}:{}'.format(
-            state['test']['ip'], config['port'])):
+            state[phase]['ip'], config['port'])):
         wait_for_connection(
-            state['test']['ip'], config['port'], files['inventory'],
-            'test', time.time() + config['connection_timeout']
+            state[phase]['ip'], config['port'], files['inventory'],
+            phase, time.time() + config['connection_timeout']
         )
 
     return run_ansible(verbosity, files['inventory'], config['playbook'], {},
@@ -461,8 +465,10 @@ def run_ansible(verbosity, inventory, playbook, extra_vars, requirements):
 
 
 def make_image(ec2, instance, config, wait):
+    phase = 'image'
+
     with load_state(instance) as state:
-        if 'image' in state:
+        if phase in state:
             return
 
         if 'build' not in state:
@@ -482,10 +488,10 @@ def make_image(ec2, instance, config, wait):
         image = ec2_instance.create_image(Name=image_name)
         print('Created image {} with name {}'.format(image.id, image_name))
 
-        state['image'] = {'id': image.id}
+        state[phase] = {'id': image.id}
 
     if wait:
-        with Spinner('image'):
+        with Spinner(phase):
             wait_for_image(image)
 
 
