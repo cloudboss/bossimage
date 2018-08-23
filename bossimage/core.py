@@ -24,7 +24,6 @@ import itertools
 import json
 import os
 import re
-import socket
 import subprocess
 import sys
 import threading as t
@@ -309,11 +308,6 @@ def wait_for_connection(addr, port, inventory, group, end):
             message = 'Timeout while connecting to {}:{}'.format(addr, port)
             raise ConnectionTimeout(message)
         try:
-            # First check if port is open.
-            socket.create_connection((addr, port), 1)
-
-            # We didn't raise an exception, so port is open.
-            # Now check if we can actually log in.
             with open('/dev/null', 'wb') as devnull:
                 ret = subprocess.call([
                     'ansible', group,
