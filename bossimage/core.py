@@ -124,8 +124,7 @@ def role_version():
         if os.path.exists('.role-version'):
             with open('.role-version') as f:
                 return f.read().strip()
-        else:
-            return 'unset'
+        return 'unset'
     env_version = os.getenv('BI_ROLE_VERSION')
     return env_version if env_version else file_version()
 
