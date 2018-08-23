@@ -18,7 +18,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 import os
-import random
 import StringIO
 
 from friend.net import random_ipv4
@@ -304,7 +303,6 @@ def make_inventory_string():
 def test_inventory_entry():
     username = random_alphanum(10)
     password = random_alphanum(10)
-    connection = random.choice(('ssh', 'winrm'))
     key = '{}.pem'.format(random_alphanum(10))
     ip = str(random_ipv4())
     cases = (
