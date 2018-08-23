@@ -169,6 +169,10 @@ def inventory_entry(ip, keyfile, password, config):
     inventory_args = config.get('inventory_args')
     if inventory_args:
         inventory_args.setdefault('ansible_ssh_private_key_file', keyfile)
+        inventory_args.setdefault('ansible_user', DEFAULT_ANSIBLE_USER)
+        inventory_args.setdefault('ansible_port', DEFAULT_ANSIBLE_PORT)
+        inventory_args.setdefault('ansible_connection',
+                                  DEFAULT_ANSIBLE_CONNECTION)
         if password:
             inventory_args.setdefault('ansible_password', password)
     else:
@@ -358,6 +362,10 @@ def make_build(ec2, instance, config, verbosity):
     ensure_inventory(
         ec2, instance, 'build', config, keyfile,
         state['build']['id'], state['build']['ip'])
+
+    with load_inventory(instance) as inventory:
+        for entry in inventory[phase]:
+            port = inventory[phase][entry]['ansible_port']
 
     with Spinner('connection to {}:{}'.format(
             state['build']['ip'], config['port'])):
