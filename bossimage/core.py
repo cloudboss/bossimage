@@ -665,7 +665,7 @@ def validate(doc):
         v.Optional('username'): str,
         v.Optional('connection'): v.Or('ssh', 'winrm'),
         v.Optional('connection_timeout'): int,
-        v.Optional('inventory_args'): {str: str},
+        v.Optional('inventory_args'): {str: v.Or(str, int, bool)},
         v.Optional('port'): int,
         v.Optional('associate_public_ip_address'): bool,
         v.Optional('subnet'): str,
@@ -681,7 +681,6 @@ def validate(doc):
     defaults = {
         v.Optional('instance_type', default='t2.micro'): str,
         v.Optional('username', default='ec2-user'): str,
-        v.Optional('inventory_args'): {str: str},
         v.Optional('connection', default='ssh'): v.Or('ssh', 'winrm'),
         v.Optional('connection_timeout', default=600): int,
         v.Optional('port', default=22): int,
