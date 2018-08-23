@@ -38,6 +38,11 @@ import pkg_resources as pr
 import voluptuous as v
 
 
+DEFAULT_ANSIBLE_USER = 'ec2-user'
+DEFAULT_ANSIBLE_PORT = 22
+DEFAULT_ANSIBLE_CONNECTION = 'ssh'
+
+
 class ConnectionTimeout(Exception):
     pass
 
@@ -221,7 +226,8 @@ def write_playbook(playbook, config):
 def get_connection(config):
     inventory_args = config.get('inventory_args')
     if inventory_args:
-        connection = inventory_args.get('ansible_connection', 'ssh')
+        connection = inventory_args.get('ansible_connection',
+                                        DEFAULT_ANSIBLE_CONNECTION)
     else:
         connection = config['connection']
     return connection
@@ -673,10 +679,11 @@ def validate(doc):
     })
     defaults = {
         v.Optional('instance_type', default='t2.micro'): str,
-        v.Optional('username', default='ec2-user'): str,
-        v.Optional('connection', default='ssh'): v.Or('ssh', 'winrm'),
+        v.Optional('username', default=DEFAULT_ANSIBLE_USER): str,
+        v.Optional('connection',
+                   default=DEFAULT_ANSIBLE_CONNECTION): v.Or('ssh', 'winrm'),
         v.Optional('connection_timeout', default=600): int,
-        v.Optional('port', default=22): int,
+        v.Optional('port', default=DEFAULT_ANSIBLE_PORT): int,
         v.Optional('associate_public_ip_address', default=True): bool,
         v.Optional('subnet', default=''): str,
         v.Optional('security_groups', default=[]): [str],
