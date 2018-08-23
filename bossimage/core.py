@@ -660,7 +660,7 @@ def is_virtual_name(s):
 
 
 def validate(doc):
-    base = {
+    base = v.Schema({
         v.Optional('instance_type'): str,
         v.Optional('username'): str,
         v.Optional('connection'): v.Or('ssh', 'winrm'),
@@ -677,7 +677,7 @@ def validate(doc):
             {'file': str},
         ),
         v.Optional('block_device_mappings'): [dict],
-    }
+    })
     defaults = {
         v.Optional('instance_type', default='t2.micro'): str,
         v.Optional('username', default='ec2-user'): str,
@@ -695,8 +695,7 @@ def validate(doc):
         ),
         v.Optional('block_device_mappings', default=[]): [dict],
     }
-    build = base.copy()
-    build.update({
+    build = base.extend({
         v.Required('source_ami'): str,
         v.Optional('become', default=True): bool,
         v.Optional('extra_vars', default={}): dict,
@@ -704,13 +703,11 @@ def validate(doc):
     image = {
         v.Optional('ami_name'): str,
     }
-    test = base.copy()
-    test.update({
+    test = base.extend({
         v.Optional('playbook', default='tests/test.yml'): str
     })
-    platform = base.copy()
     ami_name = '%(role)s.%(profile)s.%(platform)s.%(vtype)s.%(arch)s.%(version)s' # noqa
-    platform.update({
+    platform = base.extend({
         v.Required('name'): str,
         v.Required('build'): build,
         v.Optional('image', default={'ami_name': ami_name}): image,
