@@ -564,13 +564,14 @@ def statuses(config):
 def login(instance, config, phase='build'):
     files = instance_files(instance)
 
-    with open(files['state']) as f:
-        state = yaml.load(f)
+    with load_inventory(instance) as inventory:
+        if phase not in inventory:
+            raise ItemNotFound('No {} instance found'.format(phase))
 
-    ssh = subprocess.Popen([
-        'ssh', '-i', files['keyfile'],
-        '-l', config['username'], state[phase]['ip']
-    ])
+        for host, inventory_args in inventory[phase].items():
+            user = inventory_args['ansible_user']
+
+    ssh = subprocess.Popen(['ssh', '-i', files['keyfile'], '-l', user, host])
     ssh.wait()
 
 
