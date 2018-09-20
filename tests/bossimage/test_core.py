@@ -283,10 +283,17 @@ def test_config_env_vars():
 
 
 def make_inventory_string():
-    inventory_args = {
+    inventory_args_ssh = {
         'ansible_user': 'ec2-user',
         'ansible_port': '22',
         'ansible_connection': 'ssh',
+        'ansible_ssh_private_key_file': 'rockafella.pem',
+    }
+    inventory_args_winrm = {
+        'ansible_user': 'administrator',
+        'ansible_port': '5985',
+        'ansible_connection': 'winrm',
+        'ansible_password': 'ab%zy=fo9**!73X',
         'ansible_ssh_private_key_file': 'rockafella.pem',
     }
     return '''
@@ -295,8 +302,8 @@ def make_inventory_string():
     [test]
     {}
     '''.format(
-        bc.format_inventory_entry('10.10.10.250', inventory_args),
-        bc.format_inventory_entry('10.10.10.251', inventory_args)
+        bc.format_inventory_entry('10.10.10.250', inventory_args_ssh),
+        bc.format_inventory_entry('10.10.10.251', inventory_args_winrm)
     )
 
 
@@ -384,9 +391,10 @@ def test_parse_inventory():
         'test': {
             '10.10.10.251': {
                 'ansible_ssh_private_key_file': 'rockafella.pem',
-                'ansible_user': 'ec2-user',
-                'ansible_port': '22',
-                'ansible_connection': 'ssh',
+                'ansible_user': 'administrator',
+                'ansible_password': 'ab%zy=fo9**!73X',
+                'ansible_port': '5985',
+                'ansible_connection': 'winrm',
             }
         }
     }
