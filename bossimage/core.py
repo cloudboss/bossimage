@@ -159,7 +159,11 @@ def parse_inventory(fdesc):
 
         parts = re.split('\s*', line.strip())
         ip = parts[0]
-        args = {k: v for k, v in [p.split('=') for p in parts[1:]]}
+        args = {
+            k: v for k, v in
+            [(part[0], '='.join(part[1:]))
+             for part in [p.split('=') for p in parts[1:]]]
+        }
         inventory.setdefault(section, {})
         inventory[section][ip] = args
     return inventory
