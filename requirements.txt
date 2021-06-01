@@ -32,6 +32,6 @@ requests-ntlm==1.0.0
 s3transfer==0.1.10
 setuptools-scm==3.1.0
 six==1.10.0
-urllib3==1.22
+urllib3==1.26.5
 voluptuous==0.10.5
 xmltodict==0.11.0
